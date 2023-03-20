@@ -13,6 +13,13 @@
 
 // We conditionally compile the implementations based on the platform.
 
+// NAL unit
+struct CompressedFrame {
+  uint8_t start_code[4];
+  uint8_t sps[128];
+  uint8_t psp[128];
+};
+
 // TODO: use uint8_t over char
 typedef void (*CompressedFrameHandler)(char *data, size_t length);
 
@@ -36,5 +43,8 @@ int setup(struct Capturer **target, CompressedFrameHandler handler);
 // this does not block.
 int start_capture(struct Capturer *capturer);
 int stop_capture(struct Capturer *capturer);
+// release_compressed_frame releases/frees a compressed frame.
+// should be called after the frame is processed in the handler.
+int release_compressed_frame(struct CompressedFrame *frame);
 
 #endif
