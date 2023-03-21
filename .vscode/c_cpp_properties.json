@@ -4,9 +4,10 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/deps/glfw/upstream/glfw/include/*",
+                "${workspaceFolder}/deps/glfw/upstream/glfw/**",
                 "${workspaceFolder}/deps/glad/include/*",
-                "${workspaceFolder}/deps/cimgui/*"
+                "${workspaceFolder}/deps/cimgui/*",
+                "${workspaceFolder}/deps/cimgui/generator/output/*"
             ],
             "defines": [],
             "macFrameworkPath": [

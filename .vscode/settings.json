@@ -6,6 +6,10 @@
         "*.js": "javascript",
         "glfw3.h": "c",
         "stddef.h": "c",
-        "cimgui.h": "c"
+        "cimgui.h": "c",
+        "glad.h": "c",
+        "stdint.h": "c",
+        "cimgui_impl.h": "c",
+        "stdio.h": "c"
     }
 }
