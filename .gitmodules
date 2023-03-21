@@ -1,0 +1,6 @@
+[submodule "deps/glfw"]
+	path = deps/glfw
+	url = https://github.com/hexops/mach-glfw.git
+[submodule "deps/mimgui"]
+	path = deps/mimgui
+	url = https://github.com/derinil/cimgui.git

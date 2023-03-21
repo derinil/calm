@@ -1,5 +1,8 @@
 const std = @import("std");
 
+const glfw = @import("deps/glfw/build.zig");
+const mimgui = @import("deps/mimgui/build.zig");
+
 var macFrameworks = [_][]const u8{
     "Foundation",
     "CoreGraphics",
@@ -16,10 +19,18 @@ var macFiles = [_][]const u8{
     "src/capture/mac.m",
 };
 
+var sourceFolders = [_][]const u8{
+    "./src/gui",
+    "./deps/glad/src",
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -30,6 +41,12 @@ pub fn build(b: *std.Build) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
+
+    var gsu = std.ChildProcess.init(&[_][]const u8{
+        "git", "submodule", "update", "--init", "--recursive",
+    }, allocator);
+    gsu.spawn() catch unreachable;
+    _ = gsu.wait() catch unreachable;
 
     const exe = b.addExecutable(.{
         .name = "calm",
@@ -42,6 +59,15 @@ pub fn build(b: *std.Build) void {
 
     exe.linkLibC();
     exe.linkLibCpp();
+
+    glfw.link(b, exe, .{}) catch unreachable;
+
+    mimgui.link(b, exe) catch unreachable;
+
+    exe.addIncludePath("deps/glfw/upstream/glfw/include/");
+    exe.addIncludePath("deps/glad/include/");
+    exe.addIncludePath("deps/mimgui/");
+    exe.addIncludePath("deps/mimgui/generator/output/");
 
     if (target.getOsTag().isDarwin()) {
         const flags = &[_][]const u8{
@@ -62,6 +88,26 @@ pub fn build(b: *std.Build) void {
             exe.addCSourceFile(f, flags);
         }
     } else unreachable;
+
+    for (sourceFolders) |f| {
+        const flags = &[_][]const u8{
+            "-Wall",
+            "-Werror",
+            "-Wextra",
+        };
+
+        var buf: [std.fs.MAX_PATH_BYTES]u8 = undefined;
+        var rp = std.fs.realpath(f, &buf) catch unreachable;
+
+        var dir: std.fs.IterableDir = std.fs.openIterableDirAbsolute(rp, .{}) catch unreachable;
+
+        var it = dir.iterate();
+
+        while (it.next() catch unreachable) |file| {
+            var fp = dir.dir.realpathAlloc(allocator, file.name) catch unreachable;
+            exe.addCSourceFile(fp, flags);
+        }
+    }
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.sql": "sql",
+        "zig": "Zig",
+        "*.glsl": "glsl",
+        "*.js": "javascript",
+        "glfw3.h": "c",
+        "stddef.h": "c",
+        "cimgui.h": "c"
+    }
+}

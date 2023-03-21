@@ -136,6 +136,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
 
   compressed_frame_handler(bytes, length);
 
+fail:
   CFRelease(sample_buffer);
 }
 

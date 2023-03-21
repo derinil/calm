@@ -1,12 +1,13 @@
 #include "calm.h"
 #include "capture/capture.h"
+#include "gui/gui.h"
 
 void frame_callback(char *data, size_t length)
 {
     printf("received frame %d %d %d %d %d\n", data[0], data[1], data[2], data[3], data[4]);
 }
 
-int main()
+int capture()
 {
     int err;
     struct Capturer *capturer;
@@ -18,4 +19,17 @@ int main()
     if ((err = stop_capture(capturer)))
         printf("failed to stop capture: %d\n", err);
     return 0;
+}
+
+int main(int argl, char **argv)
+{
+    if (argl > 1)
+    {
+        if (memcmp(argv[1], "capture", 7))
+        {
+            return capture();
+        }
+    }
+
+    return start_gui();
 }
