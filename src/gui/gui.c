@@ -66,6 +66,7 @@ int start_gui()
   ioptr->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
   ImGui_ImplGlfw_InitForOpenGL(window, true);
+  // TODO: is this too low?
   ImGui_ImplOpenGL3_Init("#version 120");
 
   igStyleColorsDark(NULL);
