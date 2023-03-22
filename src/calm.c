@@ -1,9 +1,9 @@
 #include "calm.h"
 #include "capture/capture.h"
-#include "gui/gui.h"
 
 #include <stdio.h>
-#include <stddef.h>
+
+#include "client.h"
 
 // This is defined in stack_tracer.zig to provide better stack traces when crash
 void setup_debug_handlers(void);
@@ -38,5 +38,5 @@ int main(int argl, char **argv)
         }
     }
 
-    return start_gui();
+    return start_client();
 }
