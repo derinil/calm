@@ -23,9 +23,63 @@
 
 #include "gui.h"
 
+GLFWwindow *window;
+
+void draw()
+{
+  glfwPollEvents();
+
+  static ImVec4 clearColor;
+  clearColor.x = 0.45f;
+  clearColor.y = 0.55f;
+  clearColor.z = 0.60f;
+  clearColor.w = 1.00f;
+
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  igNewFrame();
+
+  {
+    igBegin("Main", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+    igSetWindowPos_Vec2((ImVec2){}, ImGuiCond_Always);
+    ImGuiViewport *viewport = igGetMainViewport();
+    ImVec2 size = viewport->Size;
+    size.x /= 4;
+    igSetWindowSize_Vec2(size, ImGuiCond_Always);
+
+    static float f = 0.0f;
+    static int counter = 0;
+
+    igText("This is some useful text");
+
+    igSliderFloat("Float", &f, 0.0f, 1.0f, "%.3f", 0);
+    igColorEdit3("clear color", (float *)&clearColor, 0);
+
+    ImVec2 buttonSize;
+    buttonSize.x = 0;
+    buttonSize.y = 0;
+    if (igButton("Button", buttonSize))
+      counter++;
+    igSameLine(0.0f, -1.0f);
+    igText("counter = %d", counter);
+
+    igText("Application average %.3f ms/frame (%.1f FPS)",
+           1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
+    igEnd();
+  }
+
+  glfwMakeContextCurrent(window);
+  glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+  glClear(GL_COLOR_BUFFER_BIT);
+  igRender();
+  ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+  glfwSwapBuffers(window);
+}
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
   glViewport(0, 0, width, height);
+  draw();
 }
 
 int start_gui()
@@ -33,7 +87,8 @@ int start_gui()
   if (!glfwInit())
     return 1;
 
-  GLFWwindow *window = glfwCreateWindow(640, 480, "Calm", NULL, NULL);
+  glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+  window = glfwCreateWindow(640, 480, "Calm", NULL, NULL);
   if (!window)
     return 2;
 
@@ -62,70 +117,16 @@ int start_gui()
 
   igCreateContext(NULL);
 
-  ImGuiIO *ioptr = igGetIO();
-  ioptr->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   // TODO: is this too low?
   ImGui_ImplOpenGL3_Init("#version 120");
 
-  igStyleColorsDark(NULL);
+  igStyleColorsLight(NULL);
   // ImFontAtlas_AddFontDefault(io.Fonts, NULL);
 
-  ImVec4 clearColor;
-  clearColor.x = 0.45f;
-  clearColor.y = 0.55f;
-  clearColor.z = 0.60f;
-  clearColor.w = 1.00f;
-
   while (!glfwWindowShouldClose(window))
-  {
+    draw();
 
-    glfwPollEvents();
-
-    // start imgui frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    igNewFrame();
-
-    bool s = true;
-    igShowDemoWindow(&s);
-
-    {
-      static float f = 0.0f;
-      static int counter = 0;
-
-      igBegin("Hello, world!", NULL, 0);
-      igText("This is some useful text");
-      igCheckbox("Demo window", &s);
-
-      igSliderFloat("Float", &f, 0.0f, 1.0f, "%.3f", 0);
-      igColorEdit3("clear color", (float *)&clearColor, 0);
-
-      ImVec2 buttonSize;
-      buttonSize.x = 0;
-      buttonSize.y = 0;
-      if (igButton("Button", buttonSize))
-        counter++;
-      igSameLine(0.0f, -1.0f);
-      igText("counter = %d", counter);
-
-      igText("Application average %.3f ms/frame (%.1f FPS)",
-             1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
-      igEnd();
-    }
-
-    // render
-    igRender();
-    glfwMakeContextCurrent(window);
-    glViewport(0, 0, (int)ioptr->DisplaySize.x, (int)ioptr->DisplaySize.y);
-    glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-    glClear(GL_COLOR_BUFFER_BIT);
-    ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
-    glfwSwapBuffers(window);
-  }
-
-  // clean up
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
   igDestroyContext(NULL);

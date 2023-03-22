@@ -10,6 +10,7 @@
         "glad.h": "c",
         "stdint.h": "c",
         "cimgui_impl.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "chrono": "c"
     }
 }

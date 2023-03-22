@@ -4,3 +4,4 @@ zig-out
 .DS_Store
 *.h264
 *.mp4
+*.ini
