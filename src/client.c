@@ -1,26 +1,31 @@
 #include "gui/client_gui.h"
+#include "client.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-void *gui_thread()
+void *net_thread(void *args)
 {
-    int err = start_client_gui();
-    if (err)
-        return err;
-}
-
-void *net_thread()
-{
+    pthread_exit(NULL);
+    return NULL;
 }
 
 int start_client()
 {
-    struct client *client = malloc(sizeof(client));
+    struct client *client = malloc(sizeof(*client));
     if (!client)
         return 1;
 
-    getchar();
+    pthread_create(&client->net_thread, NULL, net_thread, NULL);
+
+    int err = handle_client_gui();
+    if (err)
+        return err;
+
+    void *net_err;
+    pthread_join(client->net_thread, &net_err);
+    if ((int *)(net_err) && *(int *)(net_err))
+        return *(int *)(net_err);
 
     return 0;
 }

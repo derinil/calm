@@ -5,8 +5,7 @@
 
 struct client
 {
-    pthread_t *gui_thread;
-    pthread_t *net_thread;
+    pthread_t net_thread;
 };
 
 int start_client();

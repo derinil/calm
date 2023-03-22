@@ -1,6 +1,8 @@
 #ifndef CLIENT_GUI_
 #define CLIENT_GUI_
 
-int start_client_gui();
+#include <pthread.h>
+
+int handle_client_gui();
 
 #endif

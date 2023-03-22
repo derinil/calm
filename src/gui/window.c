@@ -2,27 +2,42 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdio.h>
 
+#define GLFW_INCLUDE_NONE
+#include "GLFW/glfw3.h"
+#include "glad/glad.h"
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
 #define CIMGUI_USE_GLFW
 #define CIMGUI_USE_OPENGL3
 #include "cimgui_impl.h"
 
-#define GLFW_INCLUDE_NONE
-#include "GLFW/glfw3.h"
-#include "glad/glad.h"
-
 #include "window.h"
+
+void glfw_error_callback(int error, const char *description)
+{
+  // TODO: better
+  fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
 
 int setup_window(GLFWwindow **target)
 {
+  glfwSetErrorCallback(glfw_error_callback);
   if (!glfwInit())
     return 1;
 
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+  const char *glsl_version = "#version 150";
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#else
+  const char *glsl_version = "#version 130";
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+#endif
 
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
@@ -34,6 +49,15 @@ int setup_window(GLFWwindow **target)
   *target = window;
 
   glfwMakeContextCurrent(window);
+  glfwSwapInterval(1);
+
+  igCreateContext(NULL);
+  ImGuiIO *io = igGetIO();
+  io->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  igStyleColorsLight(NULL);
+
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init(glsl_version);
 
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     return 3;
@@ -41,16 +65,6 @@ int setup_window(GLFWwindow **target)
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
-
-  // enable vsync
-  glfwSwapInterval(1);
-
-  igCreateContext(NULL);
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
-  // TODO: is this too low?
-  ImGui_ImplOpenGL3_Init("#version 330");
-  igStyleColorsLight(NULL);
-  // ImFontAtlas_AddFontDefault(io.Fonts, NULL);
 
   return 0;
 }

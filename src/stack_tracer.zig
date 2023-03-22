@@ -2,6 +2,7 @@ const std = @import("std");
 
 export fn setup_debug_handlers() void {
     std.debug.maybeEnableSegfaultHandler();
+    std.debug.attachSegfaultHandler();
 }
 
 export fn dump_stack_trace() void {

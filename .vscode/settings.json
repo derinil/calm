@@ -12,6 +12,7 @@
         "cimgui_impl.h": "c",
         "stdio.h": "c",
         "chrono": "c",
-        "gui.h": "c"
+        "gui.h": "c",
+        "window.h": "c"
     }
 }
