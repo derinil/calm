@@ -2,6 +2,10 @@
 #include "capture/capture.h"
 #include "gui/gui.h"
 
+#include <stdio.h>
+#include <stddef.h>
+
+// This is defined in stack_tracer.zig to provide better stack traces when crash
 void setup_debug_handlers(void);
 
 void frame_callback(char *data, size_t length)
