@@ -3,9 +3,11 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "net/receiver.h"
 
 void *net_thread(void *args)
 {
+    
     pthread_exit(NULL);
     return NULL;
 }

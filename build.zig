@@ -25,6 +25,7 @@ var macFiles = [_][]const u8{
 var sourceFolders = [_][]const u8{
     basePath("/src"),
     basePath("/src/gui"),
+    basePath("/src/net"),
     basePath("/deps/glad/src"),
 };
 
