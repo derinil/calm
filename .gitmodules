@@ -4,3 +4,6 @@
 [submodule "deps/cimgui"]
 	path = deps/cimgui
 	url = https://github.com/derinil/cimgui.git
+[submodule "deps/yojimbo"]
+	path = deps/yojimbo
+	url = https://github.com/derinil/yojimbo.git
