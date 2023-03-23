@@ -4,9 +4,3 @@
 [submodule "deps/cimgui"]
 	path = deps/cimgui
 	url = https://github.com/derinil/cimgui.git
-[submodule "deps/GameNetworkingSockets"]
-	path = deps/GameNetworkingSockets
-	url = https://github.com/ValveSoftware/GameNetworkingSockets.git
-[submodule "deps/yojimbo"]
-	path = deps/yojimbo
-	url = https://github.com/networkprotocol/yojimbo.git
