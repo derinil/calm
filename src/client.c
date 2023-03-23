@@ -8,10 +8,15 @@
 void *net_thread(void *args)
 {
     int err;
-    err = setup_receiver();
-    if (err)
+    struct Receiver *rcv;
+
+    rcv = setup_receiver();
+    if (!rcv)
+    {
+        err = 1;
         goto exit;
-    err = destroy_receiver();
+    }
+    err = destroy_receiver(rcv);
     if (err)
         goto exit;
 exit:

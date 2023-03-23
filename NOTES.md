@@ -31,6 +31,7 @@
 - https://www.reddit.com/r/gamedev/comments/93kr9h/recommended_c_udp_networking_library/
 - https://github.com/libuv/libuv
 - https://github.com/SLikeSoft/SLikeNet
+- enet example https://github.com/cxong/ENetLANChatServer
 
 # commands
 - to convert the h264 to playable mp4 `ffmpeg -i dump.h264 -c copy test.mp4`, can do it without -codec copy
