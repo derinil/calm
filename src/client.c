@@ -7,8 +7,15 @@
 
 void *net_thread(void *args)
 {
-    
-    pthread_exit(NULL);
+    int err;
+    err = setup_receiver();
+    if (err)
+        goto exit;
+    err = destroy_receiver();
+    if (err)
+        goto exit;
+exit:
+    printf("net_thread finished with code %d\n", err);
     return NULL;
 }
 
@@ -28,6 +35,5 @@ int start_client()
     pthread_join(client->net_thread, &net_err);
     if ((int *)(net_err) && *(int *)(net_err))
         return *(int *)(net_err);
-
     return 0;
 }

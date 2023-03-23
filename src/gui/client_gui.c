@@ -69,16 +69,12 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 int handle_client_gui()
 {
     GLFWwindow *window;
-
     int err = setup_window(&window);
     if (err)
         return err;
-
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
     // NOTE: can use glfwWaitEvents(); to update gui only on input event
     draw(window);
     destroy_window(window);
-
     return 0;
 }

@@ -2,7 +2,7 @@ const std = @import("std");
 
 const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
-const yojimbo = @import("deps/yojimbo/build.zig");
+const enet = @import("deps/enet/build.zig");
 
 var macFrameworks = [_][]const u8{
     "Foundation",
@@ -53,9 +53,7 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath("deps/cimgui/");
     exe.addIncludePath("deps/cimgui/generator/output/");
 
-    // buildGameNetworkingSockets(b.allocator) catch unreachable;
-    yojimbo.link(b, exe);
-    exe.addIncludePath("deps/yojimbo/");
+    enet.link(b, exe);
 
     if (target.getOsTag().isDarwin()) {
         const flags = &[_][]const u8{
@@ -137,34 +135,4 @@ fn updateSubmodules(allocator: std.mem.Allocator) void {
     }, allocator);
     gsu.spawn() catch unreachable;
     _ = gsu.wait() catch unreachable;
-}
-
-const GNSBuildError = error{GNSBuildError};
-// lazy way of building GameNetworkingSockets
-fn buildGameNetworkingSockets(allocator: std.mem.Allocator) !void {
-    var er: std.ChildProcess.ExecResult = try std.ChildProcess.exec(.{
-        .allocator = allocator,
-        .cwd = "deps/GameNetworkingSockets",
-        .argv = &.{ "mkdir", "build" },
-    });
-    std.log.info("gns build: {s} {s}", .{ er.stdout, er.stderr });
-
-    er = try std.ChildProcess.exec(.{
-        .allocator = allocator,
-        .cwd = "deps/GameNetworkingSockets/build",
-        .argv = &.{
-            "cmake",
-            "-DBUILD_STATIC_LIB=on",
-            "-DBUILD_SHARED_LIB=off",
-            "-DProtobuf_USE_STATIC_LIBS=on",
-            "-DSTEAMNETWORKINGSOCKETS_STATIC_LINK",
-            "-DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl@3/",
-            "-DProtobuf_INCLUDE_DIR=/opt/homebrew/Cellar/protobuf/21.12/include",
-            "-DProtobuf_LIBRARIES=/opt/homebrew/Cellar/protobuf/21.12/lib",
-            "..",
-        },
-    });
-    std.log.info("gns build: {s} {s}", .{ er.stdout, er.stderr });
-    if (er.stderr.len > 0)
-        return GNSBuildError.GNSBuildError;
 }
