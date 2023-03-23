@@ -292,6 +292,8 @@ int setup(struct Capturer **target,
       this->display_id, this->capturer.width, this->capturer.height,
       kCMPixelFormat_32BGRA, opts, queue, frame_callback);
 
+      // TODO: 420y or j
+
   CFRelease(opts);
 
   CFRetain(stream);
