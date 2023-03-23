@@ -1,8 +1,9 @@
 const std = @import("std");
-
+const time = std.time;
+const log = std.log;
+const enet = @import("deps/enet/build.zig");
 const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
-const enet = @import("deps/enet/build.zig");
 
 var macFrameworks = [_][]const u8{
     "Foundation",
