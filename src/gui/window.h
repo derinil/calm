@@ -4,7 +4,7 @@
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 
-int setup_window(GLFWwindow **target);
+GLFWwindow *setup_window();
 void destroy_window(GLFWwindow *window);
 
 #endif

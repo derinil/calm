@@ -21,11 +21,11 @@ void glfw_error_callback(int error, const char *description)
   fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-int setup_window(GLFWwindow **target)
+GLFWwindow *setup_window()
 {
   glfwSetErrorCallback(glfw_error_callback);
   if (!glfwInit())
-    return 1;
+    return NULL;
 
 #ifdef __APPLE__
   const char *glsl_version = "#version 150";
@@ -44,9 +44,7 @@ int setup_window(GLFWwindow **target)
 
   GLFWwindow *window = glfwCreateWindow(640, 480, "Calm", NULL, NULL);
   if (!window)
-    return 2;
-
-  *target = window;
+    return NULL;
 
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);
@@ -60,13 +58,13 @@ int setup_window(GLFWwindow **target)
   ImGui_ImplOpenGL3_Init(glsl_version);
 
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    return 3;
+    return NULL;
 
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
 
-  return 0;
+  return window;
 }
 
 void destroy_window(GLFWwindow *window)

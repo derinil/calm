@@ -181,13 +181,10 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
   prev_time = curr;
 }
 
-int setup(struct Capturer **target,
-          CompressedFrameHandler compressed_frame_handler) {
+struct Capturer *setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   struct MacCapturer *this = malloc(sizeof(*this));
   if (!this)
-    return 1;
-
-  *target = &this->capturer;
+    return NULL;
 
   CGDirectDisplayID main = CGMainDisplayID();
 
@@ -247,7 +244,7 @@ int setup(struct Capturer **target,
       compressed_frame_callback, compressed_frame_handler,
       &compression_session);
   if (status)
-    return status;
+    return NULL;
 
   CFRetain(compression_session);
   this->compression_session = compression_session;
@@ -291,7 +288,7 @@ int setup(struct Capturer **target,
   CFRetain(stream);
   this->stream = stream;
 
-  return 0;
+  return &this->capturer;
 }
 
 int start_capture(struct Capturer *capturer) {

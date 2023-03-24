@@ -14,7 +14,8 @@
 // We conditionally compile the implementations based on the platform.
 
 // NAL unit
-struct CompressedFrame {
+struct CompressedFrame
+{
   uint8_t start_code[4];
   uint8_t sps[128];
   uint8_t psp[128];
@@ -38,7 +39,7 @@ struct Capturer
 // Sets up the backend for the capturer.
 // This will allocate a capturer to be used throughout the lifetime of a
 // program.
-int setup(struct Capturer **target, CompressedFrameHandler handler);
+struct Capturer *setup(CompressedFrameHandler handler);
 // start_capture starts the screen capturer. frames will be h264 compressed.
 // this does not block.
 int start_capture(struct Capturer *capturer);
