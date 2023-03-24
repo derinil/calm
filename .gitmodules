@@ -7,3 +7,6 @@
 [submodule "deps/enet"]
 	path = deps/enet
 	url = https://github.com/derinil/enet.git
+[submodule "deps/libuv"]
+	path = deps/libuv
+	url = https://github.com/derinil/zig-libuv.git
