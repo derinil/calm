@@ -3,7 +3,7 @@
 
 #include <pthread.h>
 
-struct client
+struct Client
 {
     pthread_t net_thread;
 };

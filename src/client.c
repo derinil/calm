@@ -3,20 +3,23 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "net/receiver.h"
+#include "net/client.h"
 
 void *net_thread(void *args)
 {
     int err;
-    struct Receiver *rcv;
+    struct NetClient *c;
 
-    rcv = setup_receiver();
-    if (!rcv)
+    c = setup_client();
+    if (!c)
     {
         err = 1;
         goto exit;
     }
-    err = destroy_receiver(rcv);
+    err = connect_client(c, "192.168.0.1");
+    if (err)
+        goto exit;
+    err = destroy_client(c);
     if (err)
         goto exit;
 exit:
@@ -26,7 +29,7 @@ exit:
 
 int start_client()
 {
-    struct client *client = malloc(sizeof(*client));
+    struct Client *client = malloc(sizeof(*client));
     if (!client)
         return 1;
 

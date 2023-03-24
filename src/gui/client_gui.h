@@ -1,5 +1,5 @@
-#ifndef CLIENT_GUI_
-#define CLIENT_GUI_
+#ifndef GUI_CLIENT_H_
+#define GUI_CLIENT_H_
 
 #include <pthread.h>
 

@@ -15,6 +15,11 @@
         "gui.h": "c",
         "window.h": "c",
         "receiver.h": "c",
-        "enet.h": "c"
+        "enet.h": "c",
+        "client.h": "c",
+        "stdlib.h": "c",
+        "queue": "c",
+        "stack": "c",
+        "capture.h": "c"
     }
 }

@@ -4,6 +4,7 @@ const log = std.log;
 const enet = @import("deps/enet/build.zig");
 const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
+const libuv = @import("deps/libuv/build.zig");
 
 var macFrameworks = [_][]const u8{
     "Foundation",
@@ -55,12 +56,16 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath("deps/cimgui/generator/output/");
 
     enet.link(b, exe);
+    
+    _ = libuv.link(b, exe) catch unreachable;
 
     if (target.getOsTag().isDarwin()) {
         const flags = &[_][]const u8{
             "-Wall",
             "-Werror",
             "-Wextra",
+            // "-static",
+            // TODO: add static
             // TODO: Remove these
             "-Wno-unused-variable",
             "-Wno-unused-parameter",

@@ -15,6 +15,9 @@
 - https://devstreaming-cdn.apple.com/videos/wwdc/2014/513xxhfudagscto/513/513_direct_access_to_media_encoding_and_decoding.pdf
 - https://stackoverflow.com/questions/47217998/h264-encoding-and-decoding-using-videotoolbox
 
+# h264 decoding
+- https://github.com/NewChromantics/PopH264
+
 # colors
 - http://paulbourke.net/dataformats/yuv/
 - https://en.wikipedia.org/wiki/YUV

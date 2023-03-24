@@ -62,8 +62,10 @@ void compressed_frame_callback(void *output_callback_ref_con,
   static const size_t startCodeLength = 4;
   static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
 
-  // TODO: Allocate better
-  NSMutableData *elementaryStream = [NSMutableData data];
+// TODO: Allocate better
+// 10kb seems to be around average
+#define AVG_DAT_LEN 10 * 1024
+  NSMutableData *elementaryStream = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
 
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
@@ -105,24 +107,25 @@ void compressed_frame_callback(void *output_callback_ref_con,
   static const int AVCCHeaderLength = 4;
   while (bufferOffset < blockBufferLength - AVCCHeaderLength) {
     // Read the NAL unit length
-    uint32_t NALUnitLength = 0;
-    memcpy(&NALUnitLength, bufferDataPointer + bufferOffset, AVCCHeaderLength);
+    uint32_t nalu_len;
+    memcpy(&nalu_len, bufferDataPointer + bufferOffset, AVCCHeaderLength);
     // Convert the length value from Big-endian to Little-endian
-    NALUnitLength = CFSwapInt32BigToHost(NALUnitLength);
+    nalu_len = CFSwapInt32BigToHost(nalu_len);
     // Write start code to the elementary stream
     [elementaryStream appendBytes:startCode length:startCodeLength];
     // Write the NAL unit without the AVCC length header to the elementary
     // stream
     [elementaryStream
         appendBytes:bufferDataPointer + bufferOffset + AVCCHeaderLength
-             length:NALUnitLength];
+             length:nalu_len];
     // Move to the next NAL unit in the block buffer
-    bufferOffset += AVCCHeaderLength + NALUnitLength;
+    bufferOffset += AVCCHeaderLength + nalu_len;
   }
 
   char *bytes = elementaryStream.mutableBytes;
   size_t length = elementaryStream.length;
 
+#define DUMP_DEBUG 1
 #if DUMP_DEBUG
   FILE *f = fopen("dump.h264", "a+");
 
@@ -143,50 +146,39 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
                         CGDisplayStreamFrameStatus status,
                         uint64_t display_time, IOSurfaceRef surface,
                         CGDisplayStreamUpdateRef update) {
-  // TODO: clean this up
   static uint64_t prev_time = 0;
-  static uint64_t next_diff = 0;
-  static uint64_t num_frames = 0;
 
-  if (status == kCGDisplayStreamFrameStatusStopped) {
+  // https://developer.apple.com/documentation/coregraphics/cgdisplaystreamframestatus
+  // we only want to create a new frame when the display actually updates. or do
+  // we?
+  switch (status) {
+  case kCGDisplayStreamFrameStatusStopped:
     stop = 1;
+    return;
+  case kCGDisplayStreamFrameStatusFrameComplete:
+    break;
+  default:
     return;
   }
 
-  // NOTE: Thanks ChatGPT
-  // uint64_t timeScale = CMTimeGetSystemClock().timescale;
-  // CMTime time = CMTimeMake(display_time, timeScale);
-
-  // uint64_t timestamp_cm =
-  //     CMTimeMake(video_frame->timestamp().InMicroseconds(), USEC_PER_SEC);
-
-  // https://developer.apple.com/documentation/coremedia/1489195-cmclockmakehosttimefromsystemuni?language=objc
-  // CMTime timestamp = CMClockMakeHostTimeFromSystemUnits(display_time);
-  CMTime dtcm = CMClockMakeHostTimeFromSystemUnits(display_time);
-  CMTime ptcm = CMClockMakeHostTimeFromSystemUnits(prev_time);
-  CMTime duration = CMTimeSubtract(dtcm, ptcm);
-  // Millisecond difference
-  CMTime timestamp =
-      CMTimeAdd(CMTimeSubtract(dtcm, ptcm), CMTimeMake(next_diff, 1000));
-  next_diff = CMTimeGetSeconds(CMTimeSubtract(dtcm, ptcm)) * 1000;
+  CMTime timestamp = CMClockMakeHostTimeFromSystemUnits(display_time);
+  float curr = CMTimeGetSeconds(timestamp) * 1000;
 
   CFRetain(surface);
   IOSurfaceIncrementUseCount(surface);
 
-  // TODO: Find a way to do this without allocating.
   CVImageBufferRef image_buffer = NULL;
   CVPixelBufferCreateWithIOSurface(NULL, surface, NULL, &image_buffer);
 
   VTCompressionSessionEncodeFrame(compression_session, image_buffer, timestamp,
-                                  duration, NULL, NULL, NULL);
+                                  kCMTimeInvalid, NULL, NULL, NULL);
 
   CVPixelBufferRelease(image_buffer);
   IOSurfaceDecrementUseCount(surface);
   CFRelease(surface);
 
-  printf("received frame %lld\n", display_time);
-  printf("frame time %f\n", CMTimeGetSeconds(duration) * 1000);
-  prev_time = display_time;
+  printf("received frame with difference %.0f\n", curr - prev_time);
+  prev_time = curr;
 }
 
 int setup(struct Capturer **target,
@@ -260,9 +252,10 @@ int setup(struct Capturer **target,
   CFRetain(compression_session);
   this->compression_session = compression_session;
 
-  dispatch_queue_attr_t concurr_dispatch = NULL;
-  dispatch_queue_t queue =
-      dispatch_queue_create("display_stream_dispatch", concurr_dispatch);
+  CFRelease(compression_opts);
+
+  dispatch_queue_t queue = dispatch_queue_create("display_stream_dispatch",
+                                                 DISPATCH_QUEUE_CONCURRENT);
 
   CGDisplayStreamFrameAvailableHandler frame_callback =
       ^(CGDisplayStreamFrameStatus status, uint64_t display_time,
@@ -275,24 +268,23 @@ int setup(struct Capturer **target,
   // and kCGDisplayStreamMinimumFrameTime
   CFTypeRef keys[] = {
       kCGDisplayStreamMinimumFrameTime,
+      kCGDisplayStreamQueueDepth,
   };
   CFTypeRef values[] = {
     // Supposedly the default value for kCGDisplayStreamMinimumFrameTime
     // is 0 which should not throttle but this does not seem to be the default
     // behaviour.
     @0,
+    @5,
   };
 
   CFDictionaryRef opts =
-      CFDictionaryCreate(NULL, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
+      CFDictionaryCreate(NULL, keys, values, 2, &kCFTypeDictionaryKeyCallBacks,
                          &kCFTypeDictionaryValueCallBacks);
 
-  // TODO: different pixel format?
   CGDisplayStreamRef stream = CGDisplayStreamCreateWithDispatchQueue(
-      this->display_id, this->capturer.width, this->capturer.height,
-      kCMPixelFormat_32BGRA, opts, queue, frame_callback);
-
-      // TODO: 420y or j
+      this->display_id, this->capturer.width, this->capturer.height, '420v',
+      opts, queue, frame_callback);
 
   CFRelease(opts);
 
