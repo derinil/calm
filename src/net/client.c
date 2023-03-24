@@ -7,7 +7,6 @@ struct NetClient *setup_client()
     int err;
     ENetHost *client;
     struct NetClient *c;
-
     err = enet_initialize();
     if (err)
         return NULL;
@@ -18,7 +17,6 @@ struct NetClient *setup_client()
     if (!client)
         return NULL;
     c->client = client;
-
     return c;
 }
 
@@ -34,7 +32,6 @@ int connect_client(struct NetClient *c, const char *ip)
     ENetPeer *peer;
     ENetEvent event;
     ENetAddress address;
-
     enet_address_set_host_ip(&address, ip);
     address.port = CALM_PORT;
     peer = enet_host_connect(c->client, &address, NUM_CHANNELS, 0);

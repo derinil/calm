@@ -43,11 +43,27 @@ void set_disconnected_callback(struct NetServer *s, server_callback callback)
     s->disconnected_callback = callback;
 }
 
+int send_reliable(struct NetServer *s, uint8_t *data, size_t len)
+{
+    int err = 1;
+    ENetPacket *packet;
+    packet = enet_packet_create(data, len, ENET_PACKET_FLAG_RELIABLE | ENET_PACKET_FLAG_NO_ALLOCATE);
+    if (!packet)
+        goto fail;
+    err = enet_peer_send(s->client, 0, packet);
+    if (err)
+        goto fail;
+    return 0;
+fail:
+    enet_packet_destroy(packet);
+    return err;
+}
+
 int listen_connections(struct NetServer *s)
 {
     ENetEvent event;
 
-// TODO: leaving this at 1 second for now, might want to lower the interval
+    // TODO: leaving this at 1 second for now, might want to lower the interval
     while (enet_host_service(s->server, &event, 1000) > -1)
     {
         switch (event.type)
