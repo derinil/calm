@@ -21,6 +21,7 @@ struct NetServer *setup_server()
     server = enet_host_create(&address, NUM_PEERS, NUM_CHANNELS, 0, 0);
     if (!server)
         return NULL;
+    // TODO: consider enet_host_compress_with_range_coder
     s->server = server;
 
     return s;
@@ -47,15 +48,24 @@ int send_reliable(struct NetServer *s, uint8_t *data, size_t len)
 {
     int err = 1;
     ENetPacket *packet;
+    printf("5\n");
+    if (!s)
+        printf("null server\n");
+    // TODO: how is it getting past this?
+    if (!s->client)
+        return 0;
     packet = enet_packet_create(data, len, ENET_PACKET_FLAG_RELIABLE | ENET_PACKET_FLAG_NO_ALLOCATE);
     if (!packet)
         goto fail;
+    printf("6\n");
     err = enet_peer_send(s->client, 0, packet);
     if (err)
         goto fail;
     return 0;
 fail:
+printf("7\n");
     enet_packet_destroy(packet);
+    printf("8\n");
     return err;
 }
 

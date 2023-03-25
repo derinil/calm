@@ -1,5 +1,6 @@
 #include "capture.h"
-
+#include <stdio.h>
+#include <stdlib.h>
 #include <AVFoundation/AVFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreMedia/CoreMedia.h>
@@ -9,6 +10,7 @@
 #include <Foundation/Foundation.h>
 #include <IOSurface/IOSurfaceAPI.h>
 #include <VideoToolbox/VideoToolbox.h>
+
 
 /*
 NOTE: turns out CGDisplayStream with CFRunLoop throttles
@@ -65,7 +67,8 @@ void compressed_frame_callback(void *output_callback_ref_con,
 // TODO: Allocate better
 // 10kb seems to be around average
 #define AVG_DAT_LEN 10 * 1024
-  NSMutableData *elementaryStream = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
+  NSMutableData *elementaryStream =
+      [NSMutableData dataWithCapacity:AVG_DAT_LEN];
 
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
@@ -122,7 +125,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
     bufferOffset += AVCCHeaderLength + nalu_len;
   }
 
-  char *bytes = elementaryStream.mutableBytes;
+  uint8_t *bytes = elementaryStream.mutableBytes;
   size_t length = elementaryStream.length;
 
 #define DUMP_DEBUG 1
@@ -137,8 +140,14 @@ void compressed_frame_callback(void *output_callback_ref_con,
   fclose(f);
 #endif
 
-  compressed_frame_handler(bytes, length);
+  struct CFrame *frame = malloc(sizeof(*frame));
+  if (!frame)
+    goto end;
+  frame->data = bytes;
+  frame->length = length;
+  compressed_frame_handler(frame);
 
+end:
   CFRelease(sample_buffer);
 }
 
@@ -181,7 +190,8 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
   prev_time = curr;
 }
 
-struct Capturer *setup_capturer(CompressedFrameHandler compressed_frame_handler) {
+struct Capturer *
+setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   struct MacCapturer *this = malloc(sizeof(*this));
   if (!this)
     return NULL;

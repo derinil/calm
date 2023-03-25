@@ -3,17 +3,13 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include "net/server.h"
 
 struct Server
 {
     pthread_t net_thread;
     pthread_t capture_thread;
-};
-
-struct Frame
-{
-    uint8_t data;
-    size_t length;
+    struct NetServer *net_server;
 };
 
 int start_server();

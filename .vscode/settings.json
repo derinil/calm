@@ -20,6 +20,7 @@
         "stdlib.h": "c",
         "queue": "c",
         "stack": "c",
-        "capture.h": "c"
+        "capture.h": "c",
+        "server.h": "c"
     }
 }

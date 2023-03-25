@@ -8,11 +8,15 @@ void setup_debug_handlers(void);
 
 int main(int argl, char **argv)
 {
+    int ret;
     setup_debug_handlers();
 
 #if 1
-    return start_server();
+    ret = start_server();
 #else
-    return start_client();
+    ret = start_client();
 #endif
+
+    printf("exiting with code: %d\n", ret);
+    return ret;
 }

@@ -69,7 +69,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 int handle_client_gui()
 {
     GLFWwindow *window;
-    window = setup_window(&window);
+    window = setup_window();
     if (!window)
         return 1;
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);

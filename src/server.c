@@ -9,22 +9,41 @@
 
 uv_loop_t *loop;
 uv_async_t server_itc;
+struct Server *g_server;
 
-void frame_callback(char *data, size_t length)
+void send_frame_callback(uv_work_t *req)
 {
-    uv_work_t *req;
-            uv_queue_work(loop, &req[i], fib, NULL);
+    struct CFrame *frame = (struct CFrame *)req->data;
+    if (!frame)
+        printf("null frame!!\n");
+    printf("1\n");
+    send_reliable(g_server->net_server, frame->data, frame->length);
+    printf("4\n");
+}
 
-    printf("received compressed frame %d %d %d %d %d with length %lu\n", data[0], data[1], data[2], data[3], data[4], length);
+void frame_callback(struct CFrame *frame)
+{
+    if (!frame)
+        printf("null frame!!\n");
+    uv_work_t *req;
+    printf("received compressed frame with length %lu\n", frame->length);
+    req = malloc(sizeof(*req));
+    if (!req)
+        return;
+    req->data = (void *)frame;
+    printf("2\n");
+    uv_queue_work(loop, req, send_frame_callback, NULL);
+    printf("3\n");
 }
 
 void *capture_thread(void *args)
 {
     int err;
     struct Capturer *capturer;
-    capturer = setup(frame_callback);
+    capturer = setup_capturer(frame_callback);
     if (!capturer)
         printf("failed to setup capturer\n");
+    // TODO:
     if ((err = start_capture(capturer)))
         printf("failed to start capture: %d\n", err);
     getchar();
@@ -44,6 +63,8 @@ void *server_net_thread(void *args)
         err = 1;
         goto exit;
     }
+    // TODO: race condition :DD
+    g_server->net_server = s;
     err = listen_connections(s);
     if (err)
         goto exit;
@@ -57,14 +78,14 @@ exit:
 
 int start_server()
 {
-    struct Server *server = malloc(sizeof(*server));
-    if (!server)
+    g_server = malloc(sizeof(*g_server));
+    if (!g_server)
         return 1;
 
     loop = uv_default_loop();
 
-    pthread_create(&server->net_thread, NULL, server_net_thread, NULL);
-    pthread_create(&server->capture_thread, NULL, capture_thread, NULL);
+    pthread_create(&(g_server->net_thread), NULL, server_net_thread, NULL);
+    pthread_create(&(g_server->capture_thread), NULL, capture_thread, NULL);
 
     int err = handle_client_gui();
     if (err)
@@ -72,10 +93,10 @@ int start_server()
 
     // TODO: clean up this horribleness
     void *thread_err;
-    pthread_join(server->net_thread, &thread_err);
+    pthread_join(g_server->net_thread, &thread_err);
     if ((int *)(thread_err) && *(int *)(thread_err))
         return *(int *)(thread_err);
-    pthread_join(server->capture_thread, &thread_err);
+    pthread_join(g_server->capture_thread, &thread_err);
     if ((int *)(thread_err) && *(int *)(thread_err))
         return *(int *)(thread_err);
     return 0;
