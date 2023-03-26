@@ -21,6 +21,8 @@
         "queue": "c",
         "stack": "c",
         "capture.h": "c",
-        "server.h": "c"
+        "server.h": "c",
+        "any": "c",
+        "filesystem": "c"
     }
 }

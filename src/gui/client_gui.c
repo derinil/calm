@@ -1,4 +1,6 @@
 #include "window.h"
+#include "../data/stack.h"
+#include "../capture/capture.h"
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
 #define CIMGUI_USE_GLFW
@@ -8,7 +10,7 @@
 #include "GLFW/glfw3.h"
 #include "glad/glad.h"
 
-void draw(GLFWwindow *window)
+void draw(GLFWwindow *window, struct DStack *stack)
 {
     static ImVec4 clearColor;
     clearColor.x = 0.45f;
@@ -53,6 +55,12 @@ void draw(GLFWwindow *window)
             igEnd();
         }
 
+        if (dstack_ready(stack))
+        {
+            struct CFrame *frame = (struct CFrame *)dstack_pop(stack);
+            
+        }
+
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT);
         igRender();
@@ -66,7 +74,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-int handle_client_gui()
+int handle_client_gui(struct DStack *stack)
 {
     GLFWwindow *window;
     window = setup_window();
@@ -74,7 +82,7 @@ int handle_client_gui()
         return 1;
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     // NOTE: can use glfwWaitEvents(); to update gui only on input event
-    draw(window);
+    draw(window, stack);
     destroy_window(window);
     return 0;
 }

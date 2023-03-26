@@ -11,10 +11,8 @@
 // TODO: remove
 #include <stdio.h>
 
-// We conditionally compile the implementations based on the platform.
-
 // TODO: use uint8_t over char
-typedef void (*CompressedFrameHandler)(char *data, size_t length);
+typedef void (*DecodedFrameHandler)(char *data, size_t length);
 
 struct Decoder
 {
@@ -24,18 +22,16 @@ struct Decoder
   size_t width;
   // Should the frames be compressed
   int should_compress;
-  // Compressed frame handler
-  CompressedFrameHandler compressed_frame_handler;
+  // Decodedframe handler
+  DecodedFrameHandler decoded_frame_handler;
 };
 
 // Sets up the backend for the capturer.
 // This will allocate a capturer to be used throughout the lifetime of a
 // program.
-int setup(struct Capturer **target, CompressedFrameHandler handler);
-// start_capture starts the screen capturer. frames will be h264 compressed.
-// this does not block.
-int start_capture(struct Capturer *capturer);
-int stop_capture(struct Capturer *capturer);
+int setup(struct Decoder **target, DecodedFrameHandler handler);
+int start_decode(struct Decoder *decoder);
+int stop_decode(struct Decoder *decoder);
 // release_compressed_frame releases/frees a compressed frame.
 // should be called after the frame is processed in the handler.
 int release_compressed_frame(struct CompressedFrame *frame);

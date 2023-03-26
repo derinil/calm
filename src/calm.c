@@ -11,11 +11,14 @@ int main(int argl, char **argv)
     int ret;
     setup_debug_handlers();
 
-#if 1
-    ret = start_server();
-#else
-    ret = start_client();
-#endif
+    if (argl != 2 || argv[1][0] == 's')
+    {
+        ret = start_server();
+    }
+    else
+    {
+        ret = start_client();
+    }
 
     printf("exiting with code: %d\n", ret);
     return ret;

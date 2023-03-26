@@ -2,73 +2,46 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "server.h"
+#include "data/stack.h"
 #include "net/server.h"
 #include "gui/client_gui.h"
 #include "capture/capture.h"
 #include "uv.h"
 
-uv_loop_t *loop;
-uv_async_t server_itc;
 struct Server *g_server;
 
-void send_frame_callback(uv_work_t *req)
+void send_frame_callback(struct CFrame *frame)
 {
-    struct CFrame *frame = (struct CFrame *)req->data;
-    if (!frame)
-        printf("null frame!!\n");
-    printf("1\n");
-    send_reliable(g_server->net_server, frame->data, frame->length);
-    printf("4\n");
+    
 }
 
 void frame_callback(struct CFrame *frame)
 {
     if (!frame)
         printf("null frame!!\n");
-    uv_work_t *req;
     printf("received compressed frame with length %lu\n", frame->length);
-    req = malloc(sizeof(*req));
-    if (!req)
-        return;
-    req->data = (void *)frame;
-    printf("2\n");
-    uv_queue_work(loop, req, send_frame_callback, NULL);
-    printf("3\n");
+    dstack_push(g_server->stack, frame);
+    send_frame_callback(frame);
 }
 
 void *capture_thread(void *args)
 {
     int err;
-    struct Capturer *capturer;
-    capturer = setup_capturer(frame_callback);
-    if (!capturer)
-        printf("failed to setup capturer\n");
-    // TODO:
-    if ((err = start_capture(capturer)))
+    if ((err = start_capture(g_server->capturer)))
         printf("failed to start capture: %d\n", err);
     getchar();
-    if ((err = stop_capture(capturer)))
+    if ((err = stop_capture(g_server->capturer)))
         printf("failed to stop capture: %d\n", err);
-    return 0;
+    return NULL;
 }
 
 void *server_net_thread(void *args)
 {
     int err;
-    struct NetServer *s;
-
-    s = setup_server();
-    if (!s)
-    {
-        err = 1;
-        goto exit;
-    }
-    // TODO: race condition :DD
-    g_server->net_server = s;
-    err = listen_connections(s);
+    err = listen_connections(g_server->net_server->server);
     if (err)
         goto exit;
-    err = destroy_server(s);
+    err = destroy_server(g_server->net_server);
     if (err)
         goto exit;
 exit:
@@ -78,16 +51,38 @@ exit:
 
 int start_server()
 {
-    g_server = malloc(sizeof(*g_server));
-    if (!g_server)
-        return 1;
+    struct Server *server;
+    struct Capturer *capturer;
+    struct NetServer *net_server;
+    struct DStack *stack;
 
-    loop = uv_default_loop();
+    server = malloc(sizeof(*server));
+    if (!server)
+        return 1;
+    memset(server, 0, sizeof(*server));
+
+    capturer = setup_capturer(frame_callback);
+    if (!capturer)
+        return 2;
+
+    net_server = setup_server();
+    if (!net_server)
+        return 3;
+
+    stack = create_dstack();
+    if (!stack)
+        return 4;
+
+    server->capturer = capturer;
+    server->net_server = net_server;
+    server->stack = stack;
+
+    g_server = server;
 
     pthread_create(&(g_server->net_thread), NULL, server_net_thread, NULL);
     pthread_create(&(g_server->capture_thread), NULL, capture_thread, NULL);
 
-    int err = handle_client_gui();
+    int err = handle_client_gui(g_server->stack);
     if (err)
         return err;
 

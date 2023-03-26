@@ -35,6 +35,7 @@
 - https://github.com/libuv/libuv
 - https://github.com/SLikeSoft/SLikeNet
 - enet example https://github.com/cxong/ENetLANChatServer
+- https://github.com/Haivision/srt
 
 # commands
 - to convert the h264 to playable mp4 `ffmpeg -i dump.h264 -c copy test.mp4`, can do it without -codec copy

@@ -1,6 +1,4 @@
 #include "capture.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include <AVFoundation/AVFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreMedia/CoreMedia.h>
@@ -10,7 +8,9 @@
 #include <Foundation/Foundation.h>
 #include <IOSurface/IOSurfaceAPI.h>
 #include <VideoToolbox/VideoToolbox.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 
 /*
 NOTE: turns out CGDisplayStream with CFRunLoop throttles
@@ -128,7 +128,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
   uint8_t *bytes = elementaryStream.mutableBytes;
   size_t length = elementaryStream.length;
 
-#define DUMP_DEBUG 1
+#define DUMP_DEBUG 0
 #if DUMP_DEBUG
   FILE *f = fopen("dump.h264", "a+");
 
@@ -143,6 +143,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
   struct CFrame *frame = malloc(sizeof(*frame));
   if (!frame)
     goto end;
+  memset(frame, 0, sizeof(*frame));
   frame->data = bytes;
   frame->length = length;
   compressed_frame_handler(frame);
@@ -195,6 +196,7 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   struct MacCapturer *this = malloc(sizeof(*this));
   if (!this)
     return NULL;
+  memset(this, 0, sizeof(*this));
 
   CGDirectDisplayID main = CGMainDisplayID();
 

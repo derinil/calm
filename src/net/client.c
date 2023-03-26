@@ -1,6 +1,8 @@
 #include "client.h"
 #include "enet/enet.h"
 #include <stdlib.h>
+#include <strings.h>
+#include <stdio.h>
 
 struct NetClient *setup_client()
 {
@@ -13,6 +15,7 @@ struct NetClient *setup_client()
     c = malloc(sizeof(*c));
     if (!c)
         return NULL;
+    memset(c, 0, sizeof(*c));
     client = enet_host_create(NULL, NUM_PEERS, NUM_CHANNELS, 0, 0);
     if (!client)
         return NULL;
@@ -37,11 +40,12 @@ int connect_client(struct NetClient *c, const char *ip)
     peer = enet_host_connect(c->client, &address, NUM_CHANNELS, 0);
     if (!peer)
         return 1;
-    if (enet_host_service(c->client, &event, 5000) < 1 || event.type != ENET_EVENT_TYPE_CONNECT)
+    if (enet_host_service(c->client, &event, 5000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT)
     {
-        enet_peer_reset(peer);
-        return 2;
+        printf("connected\n");
+        c->server = peer;
+        return 0;
     }
-    c->server = peer;
-    return 0;
+    enet_peer_reset(peer);
+    return 2;
 }

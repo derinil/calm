@@ -20,7 +20,7 @@ struct NetServer
 };
 
 struct NetServer *setup_server();
-int listen_connections(struct NetServer *s);
+int listen_connections(ENetHost *server);
 int send_reliable(struct NetServer *s, uint8_t *data, size_t len);
 void set_connected_callback(struct NetServer *s, server_callback callback);
 void set_disconnected_callback(struct NetServer *s, server_callback callback);
