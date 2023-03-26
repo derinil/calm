@@ -14,23 +14,20 @@
 // TODO: use uint8_t over char
 typedef void (*DecodedFrameHandler)(char *data, size_t length);
 
-struct Decoder
-{
+struct Decoder {
   // Height of the display in pixels.
   size_t height;
   // Width of the display in pixels.
   size_t width;
-  // Should the frames be compressed
-  int should_compress;
-  // Decodedframe handler
+  // Decoded frame handler
   DecodedFrameHandler decoded_frame_handler;
 };
 
 // Sets up the backend for the capturer.
 // This will allocate a capturer to be used throughout the lifetime of a
 // program.
-int setup(struct Decoder **target, DecodedFrameHandler handler);
-int start_decode(struct Decoder *decoder);
+struct Decoder *setup_decoder(DecodedFrameHandler handler);
+int decode_frame(struct Decoder *decoder);
 int stop_decode(struct Decoder *decoder);
 // release_compressed_frame releases/frees a compressed frame.
 // should be called after the frame is processed in the handler.

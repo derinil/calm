@@ -1,4 +1,4 @@
-#include "capture.h"
+#include "decode.h"
 
 #include <AVFoundation/AVFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -20,12 +20,9 @@ frame time drops to ~8ms.
 // TODO: Surely we can make this better
 volatile int stop = 0;
 
-struct MacCapturer {
-  struct Capturer capturer;
-  CGDirectDisplayID display_id;
-  int is_retina;
-  CGDisplayStreamRef stream;
-  VTCompressionSessionRef compression_session;
+struct MacDecoder {
+  struct Decoder decoder;
+  VTDecompressionSessionRef decompression_session;
 };
 
 void compressed_frame_callback(void *output_callback_ref_con,
@@ -37,8 +34,8 @@ void compressed_frame_callback(void *output_callback_ref_con,
 
   CFRetain(sample_buffer);
 
-  CompressedFrameHandler compressed_frame_handler =
-      (CompressedFrameHandler)output_callback_ref_con;
+  DecodedFrameHandler decoded_frame_handler =
+      (DecodedFrameHandler)output_callback_ref_con;
 
   // TODO: Taken from
   // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
@@ -123,24 +120,13 @@ void compressed_frame_callback(void *output_callback_ref_con,
   char *bytes = elementaryStream.mutableBytes;
   size_t length = elementaryStream.length;
 
-#if DUMP_DEBUG
-  FILE *f = fopen("dump.h264", "a+");
-
-  for (size_t x = 0; x < elementaryStream.length; x++) {
-    fprintf(f, "%c", bytes[x]);
-  }
-
-  fflush(f);
-  fclose(f);
-#endif
-
-  compressed_frame_handler(bytes, length);
+  decoded_frame_handler(bytes, length);
 
 fail:
   CFRelease(sample_buffer);
 }
 
-void raw_frame_callback(VTCompressionSessionRef compression_session,
+void raw_frame_callback(VTCompressionSessionRef decompression_session,
                         CGDisplayStreamFrameStatus status,
                         uint64_t display_time, IOSurfaceRef surface,
                         CGDisplayStreamUpdateRef update) {
@@ -178,8 +164,8 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
   CVImageBufferRef image_buffer = NULL;
   CVPixelBufferCreateWithIOSurface(NULL, surface, NULL, &image_buffer);
 
-  VTCompressionSessionEncodeFrame(compression_session, image_buffer, timestamp,
-                                  duration, NULL, NULL, NULL);
+  VTCompressionSessionEncodeFrame(decompression_session, image_buffer,
+                                  timestamp, duration, NULL, NULL, NULL);
 
   CVPixelBufferRelease(image_buffer);
   IOSurfaceDecrementUseCount(surface);
@@ -190,31 +176,12 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
   prev_time = display_time;
 }
 
-int setup(struct Capturer **target,
-          CompressedFrameHandler compressed_frame_handler) {
-  struct MacCapturer *this = malloc(sizeof(*this));
+struct Decoder *setup(DecodedFrameHandler decoded_frame_handler) {
+  struct MacDecoder *this = malloc(sizeof(*this));
   if (!this)
-    return 1;
+    return NULL;
 
-  *target = &this->capturer;
-
-  CGDirectDisplayID main = CGMainDisplayID();
-
-  // These actually return the pixel dimensions.
-  CGDisplayModeRef displayMode = CGDisplayCopyDisplayMode(main);
-  size_t width = CGDisplayModeGetPixelWidth(displayMode);
-  size_t height = CGDisplayModeGetPixelHeight(displayMode);
-  CGDisplayModeRelease(displayMode);
-
-  // This returns points.
-  size_t wide = CGDisplayPixelsWide(main);
-
-  this->is_retina = (width / wide == 2);
-  this->display_id = main;
-  this->capturer.should_compress = 1;
-  this->capturer.height = height;
-  this->capturer.width = width;
-  this->capturer.compressed_frame_handler = compressed_frame_handler;
+  this->decoder.decoded_frame_handler = decoded_frame_handler;
 
   // TODO: Better configuration of the compressor.
   CFTypeRef compression_keys[] = {
@@ -249,73 +216,33 @@ int setup(struct Capturer **target,
       NULL, compression_keys, compression_values, 3,
       &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
-  VTCompressionSessionRef compression_session;
-  OSStatus status = VTCompressionSessionCreate(
-      kCFAllocatorDefault, this->capturer.width, this->capturer.height,
-      kCMVideoCodecType_H264, NULL, compression_opts, NULL,
+  VTCompressionSessionRef decompression_session;
+  OSStatus status = VTDecompressionSessionCreate(
+      kCFAllocatorDefault, NULL, NULL, compression_opts, NULL,
       compressed_frame_callback, compressed_frame_handler,
-      &compression_session);
+      &decompression_session);
+  if (status)
+    return NULL;
+
+  CFRetain(decompression_session);
+  this->decompression_session = decompression_session;
+
+  return &this->decoder;
+}
+
+int start_decoder(struct Decoder *decoder) {
+  struct MacDecoder *this = (struct MacDecoder *)decoder;
+  OSStatus status =
+      VTCompressionSessionPrepareToEncodeFrames(this->decompression_session);
   if (status)
     return status;
-
-  CFRetain(compression_session);
-  this->compression_session = compression_session;
-
-  dispatch_queue_attr_t concurr_dispatch = NULL;
-  dispatch_queue_t queue =
-      dispatch_queue_create("display_stream_dispatch", concurr_dispatch);
-
-  CGDisplayStreamFrameAvailableHandler frame_callback =
-      ^(CGDisplayStreamFrameStatus status, uint64_t display_time,
-        IOSurfaceRef surface, CGDisplayStreamUpdateRef update) {
-        raw_frame_callback(compression_session, status, display_time, surface,
-                           update);
-      };
-
-  // TODO: allow configuration of kCGDisplayStreamQueueDepth
-  // and kCGDisplayStreamMinimumFrameTime
-  CFTypeRef keys[] = {
-      kCGDisplayStreamMinimumFrameTime,
-  };
-  CFTypeRef values[] = {
-    // Supposedly the default value for kCGDisplayStreamMinimumFrameTime
-    // is 0 which should not throttle but this does not seem to be the default
-    // behaviour.
-    @0,
-  };
-
-  CFDictionaryRef opts =
-      CFDictionaryCreate(NULL, keys, values, 1, &kCFTypeDictionaryKeyCallBacks,
-                         &kCFTypeDictionaryValueCallBacks);
-
-  // TODO: different pixel format?
-  CGDisplayStreamRef stream = CGDisplayStreamCreateWithDispatchQueue(
-      this->display_id, this->capturer.width, this->capturer.height,
-      kCMPixelFormat_32BGRA, opts, queue, frame_callback);
-
-  CFRelease(opts);
-
-  CFRetain(stream);
-  this->stream = stream;
-
+  // TODO:idk
   return 0;
 }
 
-int start_capture(struct Capturer *capturer) {
-  struct MacCapturer *this = (struct MacCapturer *)capturer;
-  OSStatus status =
-      VTCompressionSessionPrepareToEncodeFrames(this->compression_session);
-  if (status)
-    return status;
-  return CGDisplayStreamStart(this->stream);
-}
-
-int stop_capture(struct Capturer *capturer) {
-  struct MacCapturer *this = (struct MacCapturer *)capturer;
-  CGError err = CGDisplayStreamStop(this->stream);
-  while (!stop)
-    ;
-  CFRelease(this->stream);
-  CFRelease(this->compression_session);
+int stop_capture(struct Decoder *decoder) {
+  struct MacDecoder *this = (struct MacDecoder *)decoder;
+  VTDecompressionSessionWaitForAsynchronousFrames(this->decompression_session);
+  CFRelease(this->decompression_session);
   return err;
 }
