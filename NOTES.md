@@ -18,6 +18,7 @@
 # h264 decoding
 - https://github.com/NewChromantics/PopH264
 - https://stackoverflow.com/questions/24039345/decoding-h264-videotoolkit-api-fails-with-error-8971-in-vtdecompressionsessionc
+- https://forums.developer.apple.com/thread/11637
 
 # colors
 - http://paulbourke.net/dataformats/yuv/
