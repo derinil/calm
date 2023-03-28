@@ -1,5 +1,5 @@
+#include "../capture/capture.h"
 #include "decode.h"
-
 #include <AVFoundation/AVFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreMedia/CoreMedia.h>
@@ -9,240 +9,130 @@
 #include <Foundation/Foundation.h>
 #include <IOSurface/IOSurfaceAPI.h>
 #include <VideoToolbox/VideoToolbox.h>
-
-/*
-NOTE: turns out CGDisplayStream with CFRunLoop throttles
-up to 50ms per frame (20fps) when there is no activity on the screen.
-as soon as the mouse starts moving, or display starts updating
-frame time drops to ~8ms.
-*/
-
-// TODO: Surely we can make this better
-volatile int stop = 0;
+#include <stdio.h>
 
 struct MacDecoder {
   struct Decoder decoder;
   VTDecompressionSessionRef decompression_session;
 };
 
-void compressed_frame_callback(void *output_callback_ref_con,
-                               void *source_frame_ref_con, OSStatus status,
-                               VTEncodeInfoFlags info_flags,
-                               CMSampleBufferRef sample_buffer) {
-  if (status == kVTEncodeInfo_FrameDropped || !sample_buffer)
-    return;
-
-  CFRetain(sample_buffer);
-
-  DecodedFrameHandler decoded_frame_handler =
-      (DecodedFrameHandler)output_callback_ref_con;
-
-  // TODO: Taken from
-  // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
-
-  // Find out if the sample buffer contains an I-Frame.
-  // If so we will write the SPS and PPS NAL units to the elementary stream.
-  int is_key = 0;
-  CFArrayRef attachmentsArray =
-      CMSampleBufferGetSampleAttachmentsArray(sample_buffer, 0);
-  if (CFArrayGetCount(attachmentsArray)) {
-    CFBooleanRef notSync;
-    CFDictionaryRef dict = CFArrayGetValueAtIndex(attachmentsArray, 0);
-    BOOL keyExists = CFDictionaryGetValueIfPresent(
-        dict, kCMSampleAttachmentKey_NotSync, (const void **)&notSync);
-    // An I-Frame is a sync frame
-    is_key = !keyExists || !CFBooleanGetValue(notSync);
-  }
-
-  // This is the start code that we will write to
-  // the elementary stream before every NAL unit
-  static const size_t startCodeLength = 4;
-  static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
-
-  // TODO: Allocate better
-  NSMutableData *elementaryStream = [NSMutableData data];
-
-  // Write the SPS and PPS NAL units to the elementary stream before every
-  // I-Frame
-  if (is_key) {
-    CMFormatDescriptionRef description =
-        CMSampleBufferGetFormatDescription(sample_buffer);
-
-    // Find out how many parameter sets there are
-    size_t numberOfParameterSets;
-    CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
-        description, 0, NULL, NULL, &numberOfParameterSets, NULL);
-
-    // Write each parameter set to the elementary stream
-    for (size_t i = 0; i < numberOfParameterSets; i++) {
-      const uint8_t *parameterSetPointer;
-      size_t parameterSetLength;
-      CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
-          description, i, &parameterSetPointer, &parameterSetLength, NULL,
-          NULL);
-
-      // TODO: move these into a structure
-      [elementaryStream appendBytes:startCode length:startCodeLength];
-      [elementaryStream appendBytes:parameterSetPointer
-                             length:parameterSetLength];
-    }
-  }
-
-  // Get a pointer to the raw AVCC NAL unit data in the sample buffer
-  size_t blockBufferLength;
-  uint8_t *bufferDataPointer = NULL;
-  CMBlockBufferGetDataPointer(CMSampleBufferGetDataBuffer(sample_buffer), 0,
-                              NULL, &blockBufferLength,
-                              (char **)&bufferDataPointer);
-
-  // Loop through all the NAL units in the block buffer
-  // and write them to the elementary stream with
-  // start codes instead of AVCC length headers
-  size_t bufferOffset = 0;
-  static const int AVCCHeaderLength = 4;
-  while (bufferOffset < blockBufferLength - AVCCHeaderLength) {
-    // Read the NAL unit length
-    uint32_t NALUnitLength = 0;
-    memcpy(&NALUnitLength, bufferDataPointer + bufferOffset, AVCCHeaderLength);
-    // Convert the length value from Big-endian to Little-endian
-    NALUnitLength = CFSwapInt32BigToHost(NALUnitLength);
-    // Write start code to the elementary stream
-    [elementaryStream appendBytes:startCode length:startCodeLength];
-    // Write the NAL unit without the AVCC length header to the elementary
-    // stream
-    [elementaryStream
-        appendBytes:bufferDataPointer + bufferOffset + AVCCHeaderLength
-             length:NALUnitLength];
-    // Move to the next NAL unit in the block buffer
-    bufferOffset += AVCCHeaderLength + NALUnitLength;
-  }
-
-  char *bytes = elementaryStream.mutableBytes;
-  size_t length = elementaryStream.length;
-
-  decoded_frame_handler(bytes, length);
-
-fail:
-  CFRelease(sample_buffer);
+void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
+                                     void *sourceFrameRefCon, OSStatus status,
+                                     VTDecodeInfoFlags infoFlags,
+                                     CVImageBufferRef imageBuffer,
+                                     CMTime presentationTimeStamp,
+                                     CMTime presentationDuration) {
+  printf("received decompressed frame\n");
 }
 
-void raw_frame_callback(VTCompressionSessionRef decompression_session,
-                        CGDisplayStreamFrameStatus status,
-                        uint64_t display_time, IOSurfaceRef surface,
-                        CGDisplayStreamUpdateRef update) {
-  // TODO: clean this up
-  static uint64_t prev_time = 0;
-  static uint64_t next_diff = 0;
-  static uint64_t num_frames = 0;
+void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
+  int err;
+  struct MacDecoder *this = (struct MacDecoder *)decoder;
 
-  if (status == kCGDisplayStreamFrameStatusStopped) {
-    stop = 1;
-    return;
+  if (frame->is_keyframe) {
+    err = start_decoder(decoder, frame);
+    if (err)
+      printf("start_decoder failed with %d\n", err);
   }
-
-  // NOTE: Thanks ChatGPT
-  // uint64_t timeScale = CMTimeGetSystemClock().timescale;
-  // CMTime time = CMTimeMake(display_time, timeScale);
-
-  // uint64_t timestamp_cm =
-  //     CMTimeMake(video_frame->timestamp().InMicroseconds(), USEC_PER_SEC);
-
-  // https://developer.apple.com/documentation/coremedia/1489195-cmclockmakehosttimefromsystemuni?language=objc
-  // CMTime timestamp = CMClockMakeHostTimeFromSystemUnits(display_time);
-  CMTime dtcm = CMClockMakeHostTimeFromSystemUnits(display_time);
-  CMTime ptcm = CMClockMakeHostTimeFromSystemUnits(prev_time);
-  CMTime duration = CMTimeSubtract(dtcm, ptcm);
-  // Millisecond difference
-  CMTime timestamp =
-      CMTimeAdd(CMTimeSubtract(dtcm, ptcm), CMTimeMake(next_diff, 1000));
-  next_diff = CMTimeGetSeconds(CMTimeSubtract(dtcm, ptcm)) * 1000;
-
-  CFRetain(surface);
-  IOSurfaceIncrementUseCount(surface);
-
-  // TODO: Find a way to do this without allocating.
-  CVImageBufferRef image_buffer = NULL;
-  CVPixelBufferCreateWithIOSurface(NULL, surface, NULL, &image_buffer);
-
-  VTCompressionSessionEncodeFrame(decompression_session, image_buffer,
-                                  timestamp, duration, NULL, NULL, NULL);
-
-  CVPixelBufferRelease(image_buffer);
-  IOSurfaceDecrementUseCount(surface);
-  CFRelease(surface);
-
-  printf("received frame %lld\n", display_time);
-  printf("frame time %f\n", CMTimeGetSeconds(duration) * 1000);
-  prev_time = display_time;
 }
 
-struct Decoder *setup(DecodedFrameHandler decoded_frame_handler) {
+struct Decoder *setup_decoder(DecodedFrameHandler decoded_frame_handler) {
   struct MacDecoder *this = malloc(sizeof(*this));
   if (!this)
     return NULL;
-
   this->decoder.decoded_frame_handler = decoded_frame_handler;
+  return &this->decoder;
+}
 
-  // TODO: Better configuration of the compressor.
-  CFTypeRef compression_keys[] = {
-      kVTCompressionPropertyKey_RealTime,
-      kVTCompressionPropertyKey_ProfileLevel,
-      kVTCompressionPropertyKey_H264EntropyMode,
-      kVTCompressionPropertyKey_ExpectedFrameRate,
-      kVTCompressionPropertyKey_HDRMetadataInsertionMode,
-      kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder,
-      kVTCompressionPropertyKey_AlphaChannelMode,
-      kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality,
-      kVTCompressionPropertyKey_EnableLTR,
-      kVTCompressionPropertyKey_PreserveDynamicHDRMetadata,
-      kVTVideoEncoderSpecification_EnableLowLatencyRateControl,
+int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
+  struct MacDecoder *this = (struct MacDecoder *)decoder;
+
+  // Already initialized
+  // TODO: maybe simply remove this check so we can create new session
+  // with new pps
+  if (this->decompression_session)
+    return 0;
+
+  for (size_t i = 0; i < frame->parameter_sets_count; i++) {
+    for (size_t x = 0; x < frame->parameter_sets_lengths[i]; x++) {
+      printf("%02x", frame->parameter_sets[i][x]);
+    }
+    printf("\n");
+  }
+
+  CMFormatDescriptionRef format_description = NULL;
+  // TODO: NALUnitHeaderLength
+  // Size, in bytes, of the NALUnitLength field in an AVC video sample or AVC
+  // parameter set sample. Pass 1, 2, or 4.
+  OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
+      NULL, frame->parameter_sets_count,
+      // FIXME: ugly hack
+      (const unsigned char *const *)frame->parameter_sets,
+      frame->parameter_sets_lengths, 4, &format_description);
+  if (status) {
+    printf("lol status %d\n", status);
+    exit(1);
+    return status;
+  }
+
+  CMVideoDimensions dimensions =
+      CMVideoFormatDescriptionGetDimensions(format_description);
+
+  printf("got dimensions %d %d\n", dimensions.height, dimensions.width);
+
+  SInt32 destinationPixelType = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+
+  CFTypeRef pixel_keys[] = {
+      kCVPixelBufferPixelFormatTypeKey,
+      kCVPixelBufferWidthKey,
+      kCVPixelBufferHeightKey,
+      kCVPixelBufferOpenGLCompatibilityKey,
   };
 
-  CFTypeRef compression_values[] = {
-    kCFBooleanTrue,
-    kVTProfileLevel_H264_Baseline_AutoLevel,
-    kVTH264EntropyMode_CABAC,
-    @120,
-    kVTHDRMetadataInsertionMode_Auto,
-    kCFBooleanTrue,
-    kVTAlphaChannelMode_StraightAlpha,
-    kCFBooleanTrue,
-    kCFBooleanTrue,
-    kCFBooleanTrue,
-    kCFBooleanTrue,
+  CFTypeRef pixel_values[] = {
+      &destinationPixelType,
+      &dimensions.width,
+      &dimensions.height,
+      kCFBooleanTrue,
   };
 
-  CFDictionaryRef compression_opts = CFDictionaryCreate(
-      NULL, compression_keys, compression_values, 3,
+  CFDictionaryRef pixel_opts = CFDictionaryCreate(
+      NULL, pixel_keys, pixel_values, 4, &kCFTypeDictionaryKeyCallBacks,
+      &kCFTypeDictionaryValueCallBacks);
+
+  CFTypeRef decompression_keys[] = {
+      kVTDecompressionPropertyKey_RealTime,
+  };
+
+  CFTypeRef decompression_values[] = {
+      kCFBooleanTrue,
+  };
+
+  CFDictionaryRef decompression_opts = CFDictionaryCreate(
+      NULL, decompression_keys, decompression_values, 1,
       &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
-  VTCompressionSessionRef decompression_session;
-  OSStatus status = VTDecompressionSessionCreate(
-      kCFAllocatorDefault, NULL, NULL, compression_opts, NULL,
-      compressed_frame_callback, compressed_frame_handler,
-      &decompression_session);
+  const VTDecompressionOutputCallbackRecord callback = {
+      raw_decompressed_frame_callback, NULL};
+
+  VTDecompressionSessionRef decompression_session;
+  status = VTDecompressionSessionCreate(kCFAllocatorDefault, format_description,
+                                        decompression_opts, pixel_opts,
+                                        &callback, &decompression_session);
   if (status)
-    return NULL;
+    return status;
 
   CFRetain(decompression_session);
   this->decompression_session = decompression_session;
 
-  return &this->decoder;
-}
-
-int start_decoder(struct Decoder *decoder) {
-  struct MacDecoder *this = (struct MacDecoder *)decoder;
-  OSStatus status =
-      VTCompressionSessionPrepareToEncodeFrames(this->decompression_session);
-  if (status)
-    return status;
-  // TODO:idk
   return 0;
 }
 
-int stop_capture(struct Decoder *decoder) {
+int stop_decoder(struct Decoder *decoder) {
   struct MacDecoder *this = (struct MacDecoder *)decoder;
+  VTDecompressionSessionFinishDelayedFrames(this->decompression_session);
   VTDecompressionSessionWaitForAsynchronousFrames(this->decompression_session);
+  VTDecompressionSessionInvalidate(this->decompression_session);
   CFRelease(this->decompression_session);
-  return err;
+  return 0;
 }

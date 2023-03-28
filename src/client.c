@@ -38,7 +38,7 @@ int start_client()
 
     pthread_create(&client->net_thread, NULL, net_thread, NULL);
 
-    int err = handle_client_gui();
+    int err = handle_client_gui(NULL);
     if (err)
         return err;
 

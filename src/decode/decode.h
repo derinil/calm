@@ -1,5 +1,5 @@
-#ifndef CAPTURE_H_
-#define CAPTURE_H_
+#ifndef DECODE_H_
+#define DECODE_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -7,18 +7,20 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
-// TODO: remove
-#include <stdio.h>
+#include "../capture/capture.h"
 
 // TODO: use uint8_t over char
-typedef void (*DecodedFrameHandler)(char *data, size_t length);
+typedef void (*DecodedFrameHandler)(struct CFrame *frame);
 
 struct Decoder {
   // Height of the display in pixels.
   size_t height;
   // Width of the display in pixels.
   size_t width;
+  // Latest keyframe we have
+  struct CFrame *curr_keyframe;
+  // Initialized with keyframe
+  int is_initialized;
   // Decoded frame handler
   DecodedFrameHandler decoded_frame_handler;
 };
@@ -27,10 +29,8 @@ struct Decoder {
 // This will allocate a capturer to be used throughout the lifetime of a
 // program.
 struct Decoder *setup_decoder(DecodedFrameHandler handler);
-int decode_frame(struct Decoder *decoder);
-int stop_decode(struct Decoder *decoder);
-// release_compressed_frame releases/frees a compressed frame.
-// should be called after the frame is processed in the handler.
-int release_compressed_frame(struct CompressedFrame *frame);
+int start_decoder(struct Decoder *decoder, struct CFrame *frame);
+void decode_frame(struct Decoder *decoder, struct CFrame *frame);
+int stop_decoder(struct Decoder *decoder);
 
 #endif

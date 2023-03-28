@@ -22,12 +22,14 @@ var macFrameworks = [_][]const u8{
 
 var macFiles = [_][]const u8{
     "src/capture/mac.m",
+    "src/decode/mac.m",
 };
 
 var sourceFolders = [_][]const u8{
     basePath("/src"),
     basePath("/src/gui"),
     basePath("/src/net"),
+    basePath("/src/data"),
     basePath("/deps/glad/src"),
 };
 
@@ -47,6 +49,8 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
     exe.linkLibCpp();
 
+    // exe.addIncludePath("src");
+
     glfw.link(b, exe, .{}) catch unreachable;
     exe.addIncludePath("deps/glfw/upstream/glfw/include/");
     exe.addIncludePath("deps/glad/include/");
@@ -56,7 +60,7 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath("deps/cimgui/generator/output/");
 
     enet.link(b, exe);
-    
+
     _ = libuv.link(b, exe) catch unreachable;
 
     if (target.getOsTag().isDarwin()) {

@@ -55,11 +55,10 @@ void draw(GLFWwindow *window, struct DStack *stack)
             igEnd();
         }
 
-        if (dstack_ready(stack))
-        {
-            struct CFrame *frame = (struct CFrame *)dstack_pop(stack);
-            
-        }
+        // if (dstack_ready(stack))
+        // {
+        //     struct CFrame *frame = (struct CFrame *)dstack_pop(stack);
+        // }
 
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT);

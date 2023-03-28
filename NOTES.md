@@ -17,6 +17,7 @@
 
 # h264 decoding
 - https://github.com/NewChromantics/PopH264
+- https://stackoverflow.com/questions/24039345/decoding-h264-videotoolkit-api-fails-with-error-8971-in-vtdecompressionsessionc
 
 # colors
 - http://paulbourke.net/dataformats/yuv/
@@ -37,12 +38,20 @@
 - enet example https://github.com/cxong/ENetLANChatServer
 - https://github.com/Haivision/srt
 
+# useful misc
+- https://www.osstatus.com/
+
 # commands
 - to convert the h264 to playable mp4 `ffmpeg -i dump.h264 -c copy test.mp4`, can do it without -codec copy
     - https://superuser.com/questions/710008/how-to-get-rid-of-ffmpeg-pts-has-no-value-error
     - `ffmpeg -i dump.h264 -r 60 -f rawvideo -pix_fmt bgra -s 1920x1080 test.mp4`
 - inspect streams `ffprobe -show_streams -i "test.mp4"`
 - play via mpv `mpv dump.h264`
+
+# prior art
+- https://github.com/MirrorX-Desktop/MirrorX
+- https://github.com/rustdesk/rustdesk
+- https://parsec.app
 
 # todo
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
@@ -52,3 +61,5 @@
 [mp4 @ 0x111e09b40] pts has no value
 - converting the h264 to mp4 messes up with the colors, use yuv for compression
 - building takes way too long, figure out why
+    - maybe install the libraries so they can be cached?
+    - could be the system_sdk thing, install that too?

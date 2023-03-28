@@ -34,6 +34,11 @@ void compressed_frame_callback(void *output_callback_ref_con,
                                void *source_frame_ref_con, OSStatus status,
                                VTEncodeInfoFlags info_flags,
                                CMSampleBufferRef sample_buffer) {
+  struct CFrame *frame = malloc(sizeof(*frame));
+  if (!frame)
+    goto end;
+  memset(frame, 0, sizeof(*frame));
+
   if (status == kVTEncodeInfo_FrameDropped || !sample_buffer)
     return;
 
@@ -61,14 +66,14 @@ void compressed_frame_callback(void *output_callback_ref_con,
 
   // This is the start code that we will write to
   // the elementary stream before every NAL unit
-  static const size_t startCodeLength = 4;
-  static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
+  const size_t startCodeLength = 4;
+  const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
 
 // TODO: Allocate better
 // 10kb seems to be around average
+#define AVG_PS_LEN 1024
 #define AVG_DAT_LEN 10 * 1024
-  NSMutableData *elementaryStream =
-      [NSMutableData dataWithCapacity:AVG_DAT_LEN];
+  NSMutableData *frame_data = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
 
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
@@ -77,77 +82,73 @@ void compressed_frame_callback(void *output_callback_ref_con,
         CMSampleBufferGetFormatDescription(sample_buffer);
 
     // Find out how many parameter sets there are
-    size_t numberOfParameterSets;
-    CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
-        description, 0, NULL, NULL, &numberOfParameterSets, NULL);
+    size_t ps_len;
+    CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description, 0, NULL,
+                                                       NULL, &ps_len, NULL);
+
+    frame->parameter_sets = malloc(ps_len * sizeof(*(frame->parameter_sets)));
+    if (!frame->parameter_sets)
+      return;
+
+    frame->parameter_sets_lengths =
+        malloc(ps_len * sizeof(*(frame->parameter_sets_lengths)));
+    if (!frame->parameter_sets_lengths)
+      return;
+
+    frame->parameter_sets_count = ps_len;
 
     // Write each parameter set to the elementary stream
-    for (size_t i = 0; i < numberOfParameterSets; i++) {
-      const uint8_t *parameterSetPointer;
-      size_t parameterSetLength;
-      CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
-          description, i, &parameterSetPointer, &parameterSetLength, NULL,
-          NULL);
+    for (size_t i = 0; i < ps_len; i++) {
+      NSMutableData *ps_data = [NSMutableData dataWithCapacity:AVG_PS_LEN];
+      const uint8_t *psp;
+      size_t psp_len;
+      CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description, i, &psp,
+                                                         &psp_len, NULL, NULL);
 
-      // TODO: move these into a structure
-      [elementaryStream appendBytes:startCode length:startCodeLength];
-      [elementaryStream appendBytes:parameterSetPointer
-                             length:parameterSetLength];
+      // TODO: we can use memcpy and malloc over parameter_sets instead of this
+      [ps_data appendBytes:startCode length:startCodeLength];
+      [ps_data appendBytes:psp length:psp_len];
+
+      frame->parameter_sets[i] = ps_data.mutableBytes;
+      frame->parameter_sets_lengths[i] = ps_data.length;
     }
+
+    frame->is_keyframe = 1;
   }
 
   // Get a pointer to the raw AVCC NAL unit data in the sample buffer
-  size_t blockBufferLength;
-  uint8_t *bufferDataPointer = NULL;
+  size_t block_buffer_length;
+  uint8_t *buffer = NULL;
   CMBlockBufferGetDataPointer(CMSampleBufferGetDataBuffer(sample_buffer), 0,
-                              NULL, &blockBufferLength,
-                              (char **)&bufferDataPointer);
+                              NULL, &block_buffer_length, (char **)&buffer);
 
   // Loop through all the NAL units in the block buffer
   // and write them to the elementary stream with
   // start codes instead of AVCC length headers
-  size_t bufferOffset = 0;
-  static const int AVCCHeaderLength = 4;
-  while (bufferOffset < blockBufferLength - AVCCHeaderLength) {
+  size_t offset = 0;
+  static const int avcc_header_length = 4;
+  while (offset < block_buffer_length - avcc_header_length) {
     // Read the NAL unit length
     uint32_t nalu_len;
-    memcpy(&nalu_len, bufferDataPointer + bufferOffset, AVCCHeaderLength);
+    memcpy(&nalu_len, buffer + offset, avcc_header_length);
     // Convert the length value from Big-endian to Little-endian
     nalu_len = CFSwapInt32BigToHost(nalu_len);
     // Write start code to the elementary stream
-    [elementaryStream appendBytes:startCode length:startCodeLength];
+    [frame_data appendBytes:startCode length:startCodeLength];
     // Write the NAL unit without the AVCC length header to the elementary
     // stream
-    [elementaryStream
-        appendBytes:bufferDataPointer + bufferOffset + AVCCHeaderLength
-             length:nalu_len];
+    [frame_data appendBytes:buffer + offset + avcc_header_length
+                     length:nalu_len];
     // Move to the next NAL unit in the block buffer
-    bufferOffset += AVCCHeaderLength + nalu_len;
+    offset += avcc_header_length + nalu_len;
   }
 
-  uint8_t *bytes = elementaryStream.mutableBytes;
-  size_t length = elementaryStream.length;
+  uint8_t *bytes = frame_data.mutableBytes;
+  size_t length = frame_data.length;
 
-#define DUMP_DEBUG 0
-#if DUMP_DEBUG
-  FILE *f = fopen("dump.h264", "a+");
-
-  for (size_t x = 0; x < elementaryStream.length; x++) {
-    fprintf(f, "%c", bytes[x]);
-  }
-
-  fflush(f);
-  fclose(f);
-#endif
-
-  struct CFrame *frame = malloc(sizeof(*frame));
-  if (!frame)
-    goto end;
-  memset(frame, 0, sizeof(*frame));
-  frame->data = bytes;
-  frame->length = length;
+  frame->frame = bytes;
+  frame->frame_length = length;
   compressed_frame_handler(frame);
-
 end:
   CFRelease(sample_buffer);
 }
@@ -156,7 +157,10 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
                         CGDisplayStreamFrameStatus status,
                         uint64_t display_time, IOSurfaceRef surface,
                         CGDisplayStreamUpdateRef update) {
+#define TIME_DEBUG 1
+#if TIME_DEBUG
   static uint64_t prev_time = 0;
+#endif
 
   // https://developer.apple.com/documentation/coregraphics/cgdisplaystreamframestatus
   // we only want to create a new frame when the display actually updates. or do
@@ -246,7 +250,7 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   };
 
   CFDictionaryRef compression_opts = CFDictionaryCreate(
-      NULL, compression_keys, compression_values, 3,
+      NULL, compression_keys, compression_values, 11,
       &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
   VTCompressionSessionRef compression_session;

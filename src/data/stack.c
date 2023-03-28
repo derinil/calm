@@ -27,6 +27,7 @@ void dstack_push(struct DStack *ds, void *element)
     pthread_mutex_unlock(&ds->lock);
 }
 
+// TODO: look into a cond vars
 int dstack_ready(struct DStack *ds)
 {
     return ds->read_curr == ds->write_curr;

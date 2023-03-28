@@ -6,22 +6,28 @@
 #include "net/server.h"
 #include "gui/client_gui.h"
 #include "capture/capture.h"
+#include "decode/decode.h"
 #include "uv.h"
 
 struct Server *g_server;
 
-void send_frame_callback(struct CFrame *frame)
+void decompressed_frame_callback(struct CFrame *frame)
 {
-    
+    printf("got decoded frame with length %lu\n", frame->frame_length);
+}
+
+void decompress_frame(struct CFrame *frame)
+{
+    decode_frame(g_server->decoder, frame);
 }
 
 void frame_callback(struct CFrame *frame)
 {
     if (!frame)
         printf("null frame!!\n");
-    printf("received compressed frame with length %lu\n", frame->length);
+    printf("received compressed frame with length %lu\n", frame->frame_length);
     dstack_push(g_server->stack, frame);
-    send_frame_callback(frame);
+    decompress_frame(frame);
 }
 
 void *capture_thread(void *args)
@@ -37,6 +43,9 @@ void *capture_thread(void *args)
 
 void *server_net_thread(void *args)
 {
+#if 1
+    return NULL;
+#endif
     int err;
     err = listen_connections(g_server->net_server->server);
     if (err)
@@ -53,6 +62,7 @@ int start_server()
 {
     struct Server *server;
     struct Capturer *capturer;
+    struct Decoder *decoder;
     struct NetServer *net_server;
     struct DStack *stack;
 
@@ -73,9 +83,14 @@ int start_server()
     if (!stack)
         return 4;
 
+    decoder = setup_decoder(decompressed_frame_callback);
+    if (!decoder)
+        return 5;
+
+    server->stack = stack;
+    server->decoder = decoder;
     server->capturer = capturer;
     server->net_server = net_server;
-    server->stack = stack;
 
     g_server = server;
 
