@@ -66,14 +66,15 @@ void compressed_frame_callback(void *output_callback_ref_con,
 
   // This is the start code that we will write to
   // the elementary stream before every NAL unit
-  const size_t startCodeLength = 4;
-  const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
+  // NOTE: we simply don't use start code, if we need to stitch units together
+  // we can do it after the fact in the decoder
+  // const size_t startCodeLength = 4;
+  // const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
 
 // TODO: Allocate better
 // 10kb seems to be around average
 #define AVG_PS_LEN 1024
 #define AVG_DAT_LEN 10 * 1024
-  NSMutableData *frame_data = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
 
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
@@ -106,7 +107,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
                                                          &psp_len, NULL, NULL);
 
       // TODO: we can use memcpy and malloc over parameter_sets instead of this
-      [ps_data appendBytes:startCode length:startCodeLength];
+      // [ps_data appendBytes:startCode length:startCodeLength];
       [ps_data appendBytes:psp length:psp_len];
 
       frame->parameter_sets[i] = ps_data.mutableBytes;
@@ -122,32 +123,57 @@ void compressed_frame_callback(void *output_callback_ref_con,
   CMBlockBufferGetDataPointer(CMSampleBufferGetDataBuffer(sample_buffer), 0,
                               NULL, &block_buffer_length, (char **)&buffer);
 
+  NSMutableData *solid_frame = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
+
+  // frame->nalus = malloc(ps_len * sizeof(*(frame->parameter_sets)));
+  //   if (!frame->parameter_sets)
+  //     return;
+
+  //   frame->nalus_lengths =
+  //       malloc(ps_len * sizeof(*(frame->parameter_sets_lengths)));
+  //   if (!frame->parameter_sets_lengths)
+  //     return;
+
+  //   frame->parameter_sets_count = ps_len;
+
   // Loop through all the NAL units in the block buffer
   // and write them to the elementary stream with
   // start codes instead of AVCC length headers
   size_t offset = 0;
   static const int avcc_header_length = 4;
   while (offset < block_buffer_length - avcc_header_length) {
+    NSMutableData *frame_data = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
     // Read the NAL unit length
     uint32_t nalu_len;
     memcpy(&nalu_len, buffer + offset, avcc_header_length);
     // Convert the length value from Big-endian to Little-endian
     nalu_len = CFSwapInt32BigToHost(nalu_len);
     // Write start code to the elementary stream
-    [frame_data appendBytes:startCode length:startCodeLength];
-    // Write the NAL unit without the AVCC length header to the elementary
+    // [frame_data appendBytes:startCode length:startCodeLength];
+    // Write the NAL unit WITH the AVCC length header to the elementary
     // stream
-    [frame_data appendBytes:buffer + offset + avcc_header_length
-                     length:nalu_len];
+    [frame_data appendBytes:buffer + offset
+                     length:nalu_len + avcc_header_length];
+
+    // frame->nalus[frame->nalus_count] = frame_data.mutableBytes;
+    // frame->nalus_lengths[frame->nalus_count] = frame_data.length;
+    // frame->nalus_count++;
+
     // Move to the next NAL unit in the block buffer
     offset += avcc_header_length + nalu_len;
   }
 
-  uint8_t *bytes = frame_data.mutableBytes;
-  size_t length = frame_data.length;
+  [solid_frame appendBytes:buffer length:block_buffer_length];
+  frame->solid_frame = solid_frame.mutableBytes;
+  frame->solid_frame_length = solid_frame.length;
 
-  frame->frame = bytes;
-  frame->frame_length = length;
+  // printf("got nal count %lu\n", frame->solid_frame_length);
+
+  // uint8_t *bytes = frame_data.mutableBytes;
+  // size_t length = frame_data.length;
+
+  // frame->frame = bytes;
+  // frame->frame_length = length;
   compressed_frame_handler(frame);
 end:
   CFRelease(sample_buffer);

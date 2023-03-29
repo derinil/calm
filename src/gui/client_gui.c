@@ -75,6 +75,9 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 
 int handle_client_gui(struct DStack *stack)
 {
+#if 1
+    return 0;
+#endif
     GLFWwindow *window;
     window = setup_window();
     if (!window)

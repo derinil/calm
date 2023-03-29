@@ -1,5 +1,6 @@
 #include "../capture/capture.h"
 #include "decode.h"
+#define COREVIDEO_SILENCE_GL_DEPRECATION
 #include <AVFoundation/AVFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreMedia/CoreMedia.h>
@@ -10,6 +11,7 @@
 #include <IOSurface/IOSurfaceAPI.h>
 #include <VideoToolbox/VideoToolbox.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
 
 struct MacDecoder {
@@ -18,34 +20,92 @@ struct MacDecoder {
   CMVideoFormatDescriptionRef format_description;
 };
 
-static void raw_decompressed_frame_callback(
-    void *decompressionOutputRefCon, void *sourceFrameRefCon, OSStatus status,
-    VTDecodeInfoFlags infoFlags, CVImageBufferRef imageBuffer,
-    CMTime presentationTimeStamp, CMTime presentationDuration) {
-  printf("received decompressed frame\n");
+void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
+                                     void *sourceFrameRefCon, OSStatus status,
+                                     VTDecodeInfoFlags infoFlags,
+                                     CVImageBufferRef imageBuffer,
+                                     CMTime presentationTimeStamp,
+                                     CMTime presentationDuration) {
+  struct DFrame *frame = malloc(sizeof(*frame));
+  if (!frame)
+    return;
+
+  if (!imageBuffer || infoFlags & kVTDecodeInfo_FrameDropped) {
+    printf("frame dropped or failed, status: %d\n", status);
+    return;
+  }
+
+  CGSize size = CVImageBufferGetEncodedSize(imageBuffer);
+  printf("size %f %f\n", size.height, size.width);
+
+  size = CVImageBufferGetDisplaySize(imageBuffer);
+  printf("size %f %f\n", size.height, size.width);
+
+  // CVPixelBufferLockBaseAddress(imageBuffer, 0);
+
+  // void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+  // size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+  // size_t width = CVPixelBufferGetWidth(imageBuffer);
+  // size_t height = CVPixelBufferGetHeight(imageBuffer);
+  // OSType pixelFormatType = CVPixelBufferGetPixelFormatType(imageBuffer);
+
+  // printf("bpr %lu\n", bytesPerRow);
+
+  // CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+
+  // printf("received decompressed frame\n");
+}
+
+void release_dframe() {
+  // TODO:
+  CVOpenGLTextureRelease(NULL);
 }
 
 CMSampleBufferRef
-create_sample_buffer(CMFormatDescriptionRef format_description, void *buffer,
-                     size_t length) {
+create_sample_buffer(CMFormatDescriptionRef format_description,
+                     struct CFrame *frame) {
   OSStatus status;
+  // CMBlockBufferRef *block_bufs;
   CMBlockBufferRef block_buf;
   CMSampleBufferRef sample_buffer;
 
-  block_buf = NULL;
-  sample_buffer = NULL;
+  const size_t nalu_header_length = 4;
+
+  // block_bufs = malloc(frame->nalus_count * sizeof(*block_bufs));
+  // if (!block_bufs)
+  //   return NULL;
+
+  // for (size_t x = 0; x < frame->nalus_count; x++) {
+  //   status = CMBlockBufferCreateWithMemoryBlock(
+  //       NULL, frame->nalus[x], frame->nalus_lengths[x], NULL, NULL, 0,
+  //       frame->nalus_lengths[x], 0, &block_bufs[x]);
+  //   if (status)
+  //     return NULL;
+  // }
 
   status = CMBlockBufferCreateWithMemoryBlock(
-      NULL, buffer, length, kCFAllocatorNull, NULL, 0, length, 0, &block_buf);
+      NULL, frame->solid_frame, frame->solid_frame_length, NULL, NULL, 0,
+      frame->solid_frame_length, 0, &block_buf);
   if (status)
     return NULL;
 
-  status = CMSampleBufferCreate(kCFAllocatorDefault, block_buf, TRUE, 0, 0,
+  status = CMSampleBufferCreate(NULL, block_buf, TRUE, NULL, NULL,
                                 format_description, 1, 0, NULL, 0, NULL,
                                 &sample_buffer);
+  if (status)
+    return NULL;
+
+  // for (size_t i = 0; i < frame->frame_length; i++) {
+  //   printf("%02x", frame->frame[i]);
+  // }
+  // printf("\n");
+  //
+  // nalu_len = CFSwapInt32BigToHost(nalu_len);
 
   if (block_buf)
     CFRelease(block_buf);
+
+  CFRetain(sample_buffer);
 
   return sample_buffer;
 }
@@ -64,17 +124,24 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
     }
   }
 
-  sample_buffer = create_sample_buffer(this->format_description, frame->frame,
-                                       frame->frame_length);
-  if (!sample_buffer) {
+  printf("creating sample buffer\n");
+
+  sample_buffer = create_sample_buffer(this->format_description, frame);
+  if (!sample_buffer || sample_buffer == NULL) {
     printf("create_sample_buffer failed\n");
     return;
   }
 
-  status = VTDecompressionSessionDecodeFrame(this->decompression_session,
-                                             sample_buffer, 0, NULL, NULL);
+  VTDecodeFrameFlags decode_flags =
+      kVTDecodeFrame_EnableAsynchronousDecompression;
+
+  status = VTDecompressionSessionDecodeFrame(
+      this->decompression_session, sample_buffer, decode_flags, NULL, NULL);
   if (status)
     printf("decodeframe failed with %d\n", status);
+
+  CFRelease(sample_buffer);
+  // sample_buffer = NULL;
 }
 
 struct Decoder *setup_decoder(DecodedFrameHandler decoded_frame_handler) {
@@ -92,15 +159,17 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   // Already initialized
   // TODO: maybe simply remove this check so we can create new session
   // with new pps, CFRelease format and session
-  if (this->decompression_session)
+  if (this->decompression_session) {
+    printf("exists");
     return 0;
+  }
 
   // TODO: make this variable?
   const int nalu_header_length = 4;
 
   for (size_t i = 0; i < frame->parameter_sets_count; i++) {
     // Trim the nalu starting code/header
-    frame->parameter_sets[i] = frame->parameter_sets[i] + nalu_header_length;
+    // frame->parameter_sets[i] = frame->parameter_sets[i] + nalu_header_length;
 #if 0
     for (size_t x = 0; x < frame->parameter_sets_lengths[i]; x++) {
       printf("%02x", frame->parameter_sets[i][x]);
@@ -115,9 +184,8 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   // parameter set sample. Pass 1, 2, or 4.
   OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
       NULL, frame->parameter_sets_count,
-      // FIXME: ugly hack
       (const unsigned char *const *)frame->parameter_sets,
-      frame->parameter_sets_lengths, nalu_header_length, &format_description);
+      frame->parameter_sets_lengths, 4, &format_description);
   if (status) {
 #if 0
     printf("failed to create format %d\n", status);
@@ -130,10 +198,11 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
       CMVideoFormatDescriptionGetDimensions(format_description);
 
 #if 1
-  printf("got dimensions %d %d\n", dimensions.height, dimensions.width);
+  printf("got dimensions %d %d\n", dimensions.width, dimensions.height);
 #endif
 
   SInt32 destinationPixelType = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+  // SInt32 destinationPixelType = kCVPixelFormatType_32RGBA;
 
   CFMutableDictionaryRef pixel_opts =
       CFDictionaryCreateMutable(NULL, 4, &kCFTypeDictionaryKeyCallBacks,

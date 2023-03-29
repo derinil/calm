@@ -12,7 +12,13 @@
 // TODO: use uint8_t over char
 typedef void (*DecodedFrameHandler)(struct CFrame *frame);
 
-struct Decoder {
+struct DFrame
+{
+  uint8_t *lol;
+};
+
+struct Decoder
+{
   // Height of the display in pixels.
   size_t height;
   // Width of the display in pixels.

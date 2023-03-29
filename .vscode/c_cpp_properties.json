@@ -6,9 +6,9 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/deps/glfw/upstream/glfw/**",
                 "${workspaceFolder}/deps/glad/include/*",
+                "${workspaceFolder}/deps/glad/include/",
                 "${workspaceFolder}/deps/cimgui/*",
                 "${workspaceFolder}/deps/cimgui/generator/output/*",
-                "${workspaceFolder}/deps/yojimbo/*"
             ],
             "defines": [],
             "macFrameworkPath": [

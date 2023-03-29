@@ -8,12 +8,15 @@
 
 struct CFrame
 {
+  int is_keyframe;
   uint8_t **parameter_sets;
   size_t parameter_sets_count;
   size_t *parameter_sets_lengths;
-  int is_keyframe;
-  uint8_t *frame;
-  size_t frame_length;
+  uint8_t **nalus;
+  size_t nalus_count;
+  size_t *nalus_lengths;
+  uint8_t *solid_frame;
+  size_t solid_frame_length;
 };
 
 // TODO: use uint8_t over char

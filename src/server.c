@@ -13,7 +13,7 @@ struct Server *g_server;
 
 void decompressed_frame_callback(struct CFrame *frame)
 {
-    printf("got decoded frame with length %lu\n", frame->frame_length);
+    printf("got decoded frame with length %lu\n", frame->solid_frame_length);
 }
 
 void decompress_frame(struct CFrame *frame)
@@ -25,7 +25,7 @@ void frame_callback(struct CFrame *frame)
 {
     if (!frame)
         printf("null frame!!\n");
-    printf("received compressed frame with length %lu\n", frame->frame_length);
+    printf("received compressed frame with length %lu\n", frame->solid_frame_length);
     dstack_push(g_server->stack, frame);
     decompress_frame(frame);
 }

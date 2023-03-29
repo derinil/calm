@@ -1,4 +1,5 @@
 # h264 reading
+
 - https://shopdelta.eu/h-264-image-coding-standard_l2_aid734.html
 - https://stackoverflow.com/questions/29525000/how-to-use-videotoolbox-to-decompress-h-264-video-stream
 - https://developer.apple.com/documentation/videotoolbox/kvtcompressionpropertykey_h264entropymode?language=objc
@@ -16,19 +17,28 @@
 - https://stackoverflow.com/questions/47217998/h264-encoding-and-decoding-using-videotoolbox
 
 # h264 decoding
+
 - https://github.com/NewChromantics/PopH264
 - https://stackoverflow.com/questions/24039345/decoding-h264-videotoolkit-api-fails-with-error-8971-in-vtdecompressionsessionc
 - https://forums.developer.apple.com/thread/11637
+- https://searchfox.org/mozilla-central/source/dom/media/platforms/apple/AppleVTDecoder.cpp
+- http://aviadr1.blogspot.com/2010/05/h264-extradata-partially-explained-for.html
+- https://developer.apple.com/documentation/avfoundation/avsamplebufferdisplaylayer?language=objc
+- https://stackoverflow.com/questions/26601776/error-code-8969-12909-while-decoding-h264-in-ios-8-with-video-tool-box
+- https://github.com/htaiwan/HWDecoder
 
 # colors
+
 - http://paulbourke.net/dataformats/yuv/
 - https://en.wikipedia.org/wiki/YUV
 - https://developer.apple.com/library/archive/technotes/tn2162/_index.html
 
 # competition
+
 - https://parsec.app/blog/a-networking-protocol-built-for-the-lowest-latency-interactive-game-streaming-1fd5a03a6007
 
 # networking
+
 - lan peer discovery https://gamedev.stackexchange.com/questions/30761/solution-for-lightweight-lan-peer-discovering
 - use https://github.com/networkprotocol/yojimbo or https://github.com/ValveSoftware/GameNetworkingSockets - list https://stackoverflow.com/questions/118945/best-c-c-network-library/118968#118968
 - https://github.com/ValveSoftware/GameNetworkingSockets
@@ -40,27 +50,31 @@
 - https://github.com/Haivision/srt
 
 # useful misc
+
 - https://www.osstatus.com/
 
 # commands
+
 - to convert the h264 to playable mp4 `ffmpeg -i dump.h264 -c copy test.mp4`, can do it without -codec copy
-    - https://superuser.com/questions/710008/how-to-get-rid-of-ffmpeg-pts-has-no-value-error
-    - `ffmpeg -i dump.h264 -r 60 -f rawvideo -pix_fmt bgra -s 1920x1080 test.mp4`
+  - https://superuser.com/questions/710008/how-to-get-rid-of-ffmpeg-pts-has-no-value-error
+  - `ffmpeg -i dump.h264 -r 60 -f rawvideo -pix_fmt bgra -s 1920x1080 test.mp4`
 - inspect streams `ffprobe -show_streams -i "test.mp4"`
 - play via mpv `mpv dump.h264`
 
 # prior art
+
 - https://github.com/MirrorX-Desktop/MirrorX
 - https://github.com/rustdesk/rustdesk
 - https://parsec.app
 
 # todo
+
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
 - colors are faded, mp4 is very jittery
 - https://fcp.co/forum/4-final-cut-pro-x-fcpx/32772-help-exporting-h264-makes-video-colors-washed-out
-[mp4 @ 0x111e09b40] Timestamps are unset in a packet for stream 0. This is deprecated and will stop working in the future. Fix your code to set the timestamps properly
-[mp4 @ 0x111e09b40] pts has no value
+  [mp4 @ 0x111e09b40] Timestamps are unset in a packet for stream 0. This is deprecated and will stop working in the future. Fix your code to set the timestamps properly
+  [mp4 @ 0x111e09b40] pts has no value
 - converting the h264 to mp4 messes up with the colors, use yuv for compression
 - building takes way too long, figure out why
-    - maybe install the libraries so they can be cached?
-    - could be the system_sdk thing, install that too?
+  - maybe install the libraries so they can be cached?
+  - could be the system_sdk thing, install that too?
