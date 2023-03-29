@@ -25,70 +25,56 @@ static void raw_decompressed_frame_callback(
   printf("received decompressed frame\n");
 }
 
-CMSampleBufferRef create_sample_buffer(CMFormatDescriptionRef fmt_desc,
-                                       void *buffer, int size) {
+CMSampleBufferRef
+create_sample_buffer(CMFormatDescriptionRef format_description, void *buffer,
+                     size_t length) {
   OSStatus status;
   CMBlockBufferRef block_buf;
-  CMSampleBufferRef sample_buf;
+  CMSampleBufferRef sample_buffer;
 
   block_buf = NULL;
-  sample_buf = NULL;
+  sample_buffer = NULL;
 
   status = CMBlockBufferCreateWithMemoryBlock(
-      kCFAllocatorDefault, // structureAllocator
-      buffer,              // memoryBlock
-      size,                // blockLength
-      kCFAllocatorNull,    // blockAllocator
-      NULL,                // customBlockSource
-      0,                   // offsetToData
-      size,                // dataLength
-      0,                   // flags
-      &block_buf);
+      NULL, buffer, length, kCFAllocatorNull, NULL, 0, length, 0, &block_buf);
+  if (status)
+    return NULL;
 
-  if (!status) {
-    status = CMSampleBufferCreate(kCFAllocatorDefault, // allocator
-                                  block_buf,           // dataBuffer
-                                  TRUE,                // dataReady
-                                  0,                   // makeDataReadyCallback
-                                  0,                   // makeDataReadyRefcon
-                                  fmt_desc,            // formatDescription
-                                  1,                   // numSamples
-                                  0,                   // numSampleTimingEntries
-                                  NULL,                // sampleTimingArray
-                                  0,                   // numSampleSizeEntries
-                                  NULL,                // sampleSizeArray
-                                  &sample_buf);
-  }
+  status = CMSampleBufferCreate(kCFAllocatorDefault, block_buf, TRUE, 0, 0,
+                                format_description, 1, 0, NULL, 0, NULL,
+                                &sample_buffer);
 
   if (block_buf)
     CFRelease(block_buf);
 
-  return sample_buf;
+  return sample_buffer;
 }
 
 void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
   int err;
   OSStatus status;
-  CMSampleBufferRef sample_buf;
+  CMSampleBufferRef sample_buffer;
   struct MacDecoder *this = (struct MacDecoder *)decoder;
 
   if (frame->is_keyframe) {
     err = start_decoder(decoder, frame);
-    if (err)
+    if (err) {
       printf("start_decoder failed with %d\n", err);
+      return;
+    }
   }
 
-  // sample_buf = create_sample_buffer(
-  //     videotoolbox->cm_fmt_desc, vtctx->bitstream, vtctx->bitstream_size);
+  sample_buffer = create_sample_buffer(this->format_description, frame->frame,
+                                       frame->frame_length);
+  if (!sample_buffer) {
+    printf("create_sample_buffer failed\n");
+    return;
+  }
 
-  // if (!sample_buf)
-  //   return -1;
-
-  // status = VTDecompressionSessionDecodeFrame(this->decompression_session,
-  // NULL,
-  //                                            0, NULL, 0);
-  // if (status)
-  //   printf("decodeframe failed with %d\n", status);
+  status = VTDecompressionSessionDecodeFrame(this->decompression_session,
+                                             sample_buffer, 0, NULL, NULL);
+  if (status)
+    printf("decodeframe failed with %d\n", status);
 }
 
 struct Decoder *setup_decoder(DecodedFrameHandler decoded_frame_handler) {
@@ -105,7 +91,7 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
 
   // Already initialized
   // TODO: maybe simply remove this check so we can create new session
-  // with new pps
+  // with new pps, CFRelease format and session
   if (this->decompression_session)
     return 0;
 
@@ -115,10 +101,12 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   for (size_t i = 0; i < frame->parameter_sets_count; i++) {
     // Trim the nalu starting code/header
     frame->parameter_sets[i] = frame->parameter_sets[i] + nalu_header_length;
+#if 0
     for (size_t x = 0; x < frame->parameter_sets_lengths[i]; x++) {
       printf("%02x", frame->parameter_sets[i][x]);
     }
     printf("\n");
+#endif
   }
 
   CMFormatDescriptionRef format_description = NULL;
