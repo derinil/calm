@@ -35,25 +35,29 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
     return;
   }
 
-  CGSize size = CVImageBufferGetEncodedSize(imageBuffer);
-  printf("size %f %f\n", size.height, size.width);
+  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
+  // GL_RGB, opengl attaches a 1 alpha, is that faster or is it faster to get the alpha from decompressor
+  // Might be faster to pass less bytes to opengl
 
-  size = CVImageBufferGetDisplaySize(imageBuffer);
-  printf("size %f %f\n", size.height, size.width);
+  // CGSize size = CVImageBufferGetEncodedSize(imageBuffer);
+  // printf("size %f %f\n", size.height, size.width);
 
-  // CVPixelBufferLockBaseAddress(imageBuffer, 0);
+  // size = CVImageBufferGetDisplaySize(imageBuffer);
+  // printf("size %f %f\n", size.height, size.width);
 
-  // void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
-  // size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
-  // size_t width = CVPixelBufferGetWidth(imageBuffer);
-  // size_t height = CVPixelBufferGetHeight(imageBuffer);
-  // OSType pixelFormatType = CVPixelBufferGetPixelFormatType(imageBuffer);
+  CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
-  // printf("bpr %lu\n", bytesPerRow);
+  void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
+  size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+  size_t width = CVPixelBufferGetWidth(imageBuffer);
+  size_t height = CVPixelBufferGetHeight(imageBuffer);
+  OSType pixelFormatType = CVPixelBufferGetPixelFormatType(imageBuffer);
 
-  // CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+  printf("bpr %lu pixels %d\n", bytesPerRow, pixelFormatType);
 
-  // printf("received decompressed frame\n");
+  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+
+  printf("received decompressed frame\n");
 }
 
 void release_dframe() {
@@ -123,8 +127,6 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
       return;
     }
   }
-
-  printf("creating sample buffer\n");
 
   sample_buffer = create_sample_buffer(this->format_description, frame);
   if (!sample_buffer || sample_buffer == NULL) {
@@ -201,8 +203,12 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   printf("got dimensions %d %d\n", dimensions.width, dimensions.height);
 #endif
 
-  SInt32 destinationPixelType = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-  // SInt32 destinationPixelType = kCVPixelFormatType_32RGBA;
+  // TODO: whats the best pixel format for opengl
+  // https://developer.apple.com/documentation/corevideo/1563591-pixel_format_identifiers/kcvpixelformattype_32argb?language=objc
+  // SInt32 destinationPixelType =
+  // kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+  // SInt32 destinationPixelType = kCVPixelFormatType_32BGRA;
+  SInt32 destinationPixelType = kCVPixelFormatType_24RGB;
 
   CFMutableDictionaryRef pixel_opts =
       CFDictionaryCreateMutable(NULL, 4, &kCFTypeDictionaryKeyCallBacks,

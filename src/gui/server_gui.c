@@ -10,6 +10,30 @@
 #include "GLFW/glfw3.h"
 #include "glad/glad.h"
 
+// https://stackoverflow.com/questions/30191911/is-it-possible-to-draw-yuv422-and-yuv420-texture-using-opengl
+char *yuv_to_rgba_shader =
+    "uniform sampler2DRect Ytex;\n"
+    "uniform sampler2DRect Utex,Vtex;\n"
+    "void main(void) {\n"
+    "  float nx,ny,r,g,b,y,u,v;\n"
+    "  vec4 txl,ux,vx;"
+    "  nx=gl_TexCoord[0].x;\n"
+    "  ny=576.0-gl_TexCoord[0].y;\n"
+    "  y=texture2DRect(Ytex,vec2(nx,ny)).r;\n"
+    "  u=texture2DRect(Utex,vec2(nx/2.0,ny/2.0)).r;\n"
+    "  v=texture2DRect(Vtex,vec2(nx/2.0,ny/2.0)).r;\n"
+
+    "  y=1.1643*(y-0.0625);\n"
+    "  u=u-0.5;\n"
+    "  v=v-0.5;\n"
+
+    "  r=y+1.5958*v;\n"
+    "  g=y-0.39173*u-0.81290*v;\n"
+    "  b=y+2.017*u;\n"
+
+    "  gl_FragColor=vec4(r,g,b,1.0);\n"
+    "}\n";
+
 static void draw(GLFWwindow *window, struct DStack *stack)
 {
     static ImVec4 clearColor;
@@ -73,7 +97,7 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-int handle_client_gui(struct DStack *stack)
+int handle_server_gui(struct DStack *stack)
 {
 #if 1
     return 0;

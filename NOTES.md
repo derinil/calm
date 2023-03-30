@@ -26,12 +26,14 @@
 - https://developer.apple.com/documentation/avfoundation/avsamplebufferdisplaylayer?language=objc
 - https://stackoverflow.com/questions/26601776/error-code-8969-12909-while-decoding-h264-in-ios-8-with-video-tool-box
 - https://github.com/htaiwan/HWDecoder
+- https://stackoverflow.com/questions/37091132/ios-yuv-420v-using-gl-texture-2d-shows-wrong-colour-in-opengl-shader
 
 # colors
 
 - http://paulbourke.net/dataformats/yuv/
 - https://en.wikipedia.org/wiki/YUV
 - https://developer.apple.com/library/archive/technotes/tn2162/_index.html
+- https://stackoverflow.com/questions/30191911/is-it-possible-to-draw-yuv422-and-yuv420-texture-using-opengl
 
 # competition
 
