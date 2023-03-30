@@ -9,33 +9,64 @@
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 #include "glad/glad.h"
+#include "../decode/decode.h"
 
-// https://stackoverflow.com/questions/30191911/is-it-possible-to-draw-yuv422-and-yuv420-texture-using-opengl
-char *yuv_to_rgba_shader =
-    "uniform sampler2DRect Ytex;\n"
-    "uniform sampler2DRect Utex,Vtex;\n"
-    "void main(void) {\n"
-    "  float nx,ny,r,g,b,y,u,v;\n"
-    "  vec4 txl,ux,vx;"
-    "  nx=gl_TexCoord[0].x;\n"
-    "  ny=576.0-gl_TexCoord[0].y;\n"
-    "  y=texture2DRect(Ytex,vec2(nx,ny)).r;\n"
-    "  u=texture2DRect(Utex,vec2(nx/2.0,ny/2.0)).r;\n"
-    "  v=texture2DRect(Vtex,vec2(nx/2.0,ny/2.0)).r;\n"
+void drawImage(GLuint file,
+    float x,
+    float y,
+    float w,
+    float h,
+    float angle)
+{
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+    glPushMatrix();
+    glTranslatef(x, y, 0.0);
+    glRotatef(angle, 0.0, 0.0, 1.0);
 
-    "  y=1.1643*(y-0.0625);\n"
-    "  u=u-0.5;\n"
-    "  v=v-0.5;\n"
+    glBindTexture(GL_TEXTURE_2D, file);
+    glEnable(GL_TEXTURE_2D);
 
-    "  r=y+1.5958*v;\n"
-    "  g=y-0.39173*u-0.81290*v;\n"
-    "  b=y+2.017*u;\n"
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0, 0.0); glVertex3f(x, y, 0.0f);
+    glTexCoord2f(0.0, 2.0); glVertex3f(x, y + h, 0.0f);
+    glTexCoord2f(2.0, 2.0); glVertex3f(x + w, y + h, 0.0f);
+    glTexCoord2f(2.0, 0.0); glVertex3f(x + w, y, 0.0f);
+    glEnd();
 
-    "  gl_FragColor=vec4(r,g,b,1.0);\n"
-    "}\n";
+    glPopMatrix();
+}
+
+GLuint texture;
+void render()
+{
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glEnable(GL_DEPTH_TEST);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    const double w = glutGet( GLUT_WINDOW_WIDTH );
+    const double h = glutGet( GLUT_WINDOW_HEIGHT );
+    gluPerspective(45.0, w / h, 0.1, 1000.0);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glTranslatef( 0, 0, -15 );
+
+    drawImage(texture, 0.0f, 0.0f, 4.0f, 4.0f, 0.0);
+
+    glutSwapBuffers();
+}
+
 
 static void draw(GLFWwindow *window, struct DStack *stack)
 {
+    GLuint framebuffer;
+    GLuint texture;
+    int new_frame = 0;
+    size_t img_width, img_height;
+    struct DFrame *dframe;
     static ImVec4 clearColor;
     clearColor.x = 0.45f;
     clearColor.y = 0.55f;
@@ -46,6 +77,22 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     {
         glfwPollEvents();
 
+        dframe = (struct DFrame *)dstack_pop(stack);
+        if (dframe)
+        {
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, 4, dframe->width, dframe->height, 0, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            new_frame = 1;
+            img_width = dframe->width;
+            img_height = dframe->height;
+            release_dframe(dframe);
+        }
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         igNewFrame();
@@ -54,6 +101,7 @@ static void draw(GLFWwindow *window, struct DStack *stack)
             igBegin("Main", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
             igSetWindowPos_Vec2((ImVec2){}, ImGuiCond_Always);
             ImGuiViewport *viewport = igGetMainViewport();
+            ImDrawList *drawlist = igGetBackgroundDrawList_ViewportPtr(viewport);
             ImVec2 size = viewport->Size;
             size.x /= 4;
             igSetWindowSize_Vec2(size, ImGuiCond_Always);
@@ -76,13 +124,18 @@ static void draw(GLFWwindow *window, struct DStack *stack)
 
             igText("Application average %.3f ms/frame (%.1f FPS)",
                    1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
+
+            if (new_frame)
+            {
+                ImVec2 img_size;
+                img_size.x = img_width;
+                img_size.y = img_height;
+                // igImage((void *)(intptr_t)texture, img_size, (ImVec2){0}, (ImVec2){1, 1}, (ImVec4){0}, (ImVec4){0});
+                ImDrawList_AddImage(drawlist, (void *)(intptr_t)texture, (ImVec2){0}, img_size, (ImVec2){0}, (ImVec2){0}, 0);
+            }
+
             igEnd();
         }
-
-        // if (dstack_ready(stack))
-        // {
-        //     struct CFrame *frame = (struct CFrame *)dstack_pop(stack);
-        // }
 
         glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -99,7 +152,7 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 
 int handle_server_gui(struct DStack *stack)
 {
-#if 1
+#if 0
     return 0;
 #endif
     GLFWwindow *window;

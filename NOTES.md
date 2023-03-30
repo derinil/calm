@@ -35,6 +35,9 @@
 - https://developer.apple.com/library/archive/technotes/tn2162/_index.html
 - https://stackoverflow.com/questions/30191911/is-it-possible-to-draw-yuv422-and-yuv420-texture-using-opengl
 
+# displaying
+- https://stackoverflow.com/questions/27513201/how-to-properly-texture-a-quad-in-opengl
+
 # competition
 
 - https://parsec.app/blog/a-networking-protocol-built-for-the-lowest-latency-interactive-game-streaming-1fd5a03a6007
@@ -54,6 +57,7 @@
 # useful misc
 
 - https://www.osstatus.com/
+- https://github.com/jtsiomb
 
 # commands
 

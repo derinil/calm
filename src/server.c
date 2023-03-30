@@ -4,16 +4,17 @@
 #include "server.h"
 #include "data/stack.h"
 #include "net/server.h"
-#include "gui/client_gui.h"
+#include "gui/server_gui.h"
 #include "capture/capture.h"
 #include "decode/decode.h"
 #include "uv.h"
 
 struct Server *g_server;
 
-void decompressed_frame_callback(struct CFrame *frame)
+void decompressed_frame_callback(struct DFrame *frame)
 {
-    printf("got decoded frame with length %lu\n", frame->solid_frame_length);
+    printf("got decoded frame with length %lu\n", frame->data_length);
+    dstack_push(g_server->stack, frame);
 }
 
 void decompress_frame(struct CFrame *frame)
@@ -26,7 +27,6 @@ void frame_callback(struct CFrame *frame)
     if (!frame)
         printf("null frame!!\n");
     printf("received compressed frame with length %lu\n", frame->solid_frame_length);
-    dstack_push(g_server->stack, frame);
     decompress_frame(frame);
 }
 
@@ -97,7 +97,7 @@ int start_server()
     pthread_create(&(g_server->net_thread), NULL, server_net_thread, NULL);
     pthread_create(&(g_server->capture_thread), NULL, capture_thread, NULL);
 
-    int err = handle_client_gui(g_server->stack);
+    int err = handle_server_gui(g_server->stack);
     if (err)
         return err;
 

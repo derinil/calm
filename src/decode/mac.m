@@ -20,24 +20,38 @@ struct MacDecoder {
   CMVideoFormatDescriptionRef format_description;
 };
 
+struct MacDFrame {
+  struct DFrame frame;
+  CVImageBufferRef imageBuffer;
+};
+
 void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
                                      void *sourceFrameRefCon, OSStatus status,
                                      VTDecodeInfoFlags infoFlags,
                                      CVImageBufferRef imageBuffer,
                                      CMTime presentationTimeStamp,
                                      CMTime presentationDuration) {
-  struct DFrame *frame = malloc(sizeof(*frame));
+  struct MacDecoder *this = (struct MacDecoder *)sourceFrameRefCon;
+  if (!this)
+    return;
+
+  struct MacDFrame *frame = malloc(sizeof(*frame));
   if (!frame)
     return;
+  memset(frame, 0, sizeof(*frame));
 
   if (!imageBuffer || infoFlags & kVTDecodeInfo_FrameDropped) {
     printf("frame dropped or failed, status: %d\n", status);
     return;
   }
 
+#if 0
+  printf("received decompressed frame\n");
+#endif
+
   // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
-  // GL_RGB, opengl attaches a 1 alpha, is that faster or is it faster to get the alpha from decompressor
-  // Might be faster to pass less bytes to opengl
+  // GL_RGB, opengl attaches a 1 alpha, is that faster or is it faster to get
+  // the alpha from decompressor Might be faster to pass less bytes to opengl
 
   // CGSize size = CVImageBufferGetEncodedSize(imageBuffer);
   // printf("size %f %f\n", size.height, size.width);
@@ -51,18 +65,21 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
   size_t width = CVPixelBufferGetWidth(imageBuffer);
   size_t height = CVPixelBufferGetHeight(imageBuffer);
-  OSType pixelFormatType = CVPixelBufferGetPixelFormatType(imageBuffer);
+  size_t dataSize = CVPixelBufferGetDataSize(imageBuffer);
 
-  printf("bpr %lu pixels %d\n", bytesPerRow, pixelFormatType);
+  frame->frame.bytes_per_row = bytesPerRow;
+  frame->frame.width = width;
+  frame->frame.height = height;
+  frame->frame.data = (uint8_t *)baseAddress;
+  frame->frame.data_length = dataSize;
 
-  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-
-  printf("received decompressed frame\n");
+  this->decoder.decompressed_frame_handler(&frame->frame);
 }
 
-void release_dframe() {
-  // TODO:
-  CVOpenGLTextureRelease(NULL);
+void release_dframe(struct DFrame *frame) {
+  struct MacDFrame *this = (struct MacDFrame *)frame;
+  CVPixelBufferUnlockBaseAddress(this->imageBuffer, 0);
+  CVPixelBufferRelease(this->imageBuffer);
 }
 
 CMSampleBufferRef
@@ -138,20 +155,19 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
       kVTDecodeFrame_EnableAsynchronousDecompression;
 
   status = VTDecompressionSessionDecodeFrame(
-      this->decompression_session, sample_buffer, decode_flags, NULL, NULL);
+      this->decompression_session, sample_buffer, decode_flags, this, NULL);
   if (status)
     printf("decodeframe failed with %d\n", status);
 
   CFRelease(sample_buffer);
-  // sample_buffer = NULL;
 }
 
-struct Decoder *setup_decoder(DecodedFrameHandler decoded_frame_handler) {
+struct Decoder *setup_decoder(DecompressedFrameHandler decompressed_frame_handler) {
   struct MacDecoder *this = malloc(sizeof(*this));
   if (!this)
     return NULL;
   memset(this, 0, sizeof(*this));
-  this->decoder.decoded_frame_handler = decoded_frame_handler;
+  this->decoder.decompressed_frame_handler = decompressed_frame_handler;
   return &this->decoder;
 }
 
@@ -207,8 +223,8 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   // https://developer.apple.com/documentation/corevideo/1563591-pixel_format_identifiers/kcvpixelformattype_32argb?language=objc
   // SInt32 destinationPixelType =
   // kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
-  // SInt32 destinationPixelType = kCVPixelFormatType_32BGRA;
-  SInt32 destinationPixelType = kCVPixelFormatType_24RGB;
+  SInt32 destinationPixelType = kCVPixelFormatType_32BGRA;
+  // SInt32 destinationPixelType = kCVPixelFormatType_24RGB;
 
   CFMutableDictionaryRef pixel_opts =
       CFDictionaryCreateMutable(NULL, 4, &kCFTypeDictionaryKeyCallBacks,
