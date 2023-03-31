@@ -63,11 +63,8 @@ static void draw(GLFWwindow *window, struct DStack *stack)
             igSetWindowPos_Vec2((ImVec2){0}, ImGuiCond_Always);
             ImGuiViewport *viewport = igGetMainViewport();
             igSetWindowSize_Vec2(viewport->Size, ImGuiCond_Always);
-            // printf("yoo2\n");
-            // ImVec2 max;
-            // printf("yoo1\n");
-            // igGetWindowContentRegionMax(&max);
-            // printf("yoo\n");
+            ImVec2 max;
+            igGetWindowContentRegionMax(&max);
             igImage((void *)(intptr_t)texture, (ImVec2){width, height}, (ImVec2){0, 0}, (ImVec2){1, 1}, (ImVec4){1, 1, 1, 1}, (ImVec4){0, 0, 0, 0});
             igEnd();
         }
