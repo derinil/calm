@@ -12,7 +12,7 @@
 #include <VideoToolbox/VideoToolbox.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 
 struct MacDecoder {
   struct Decoder decoder;
@@ -48,18 +48,8 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
 #if 0
   printf("received decompressed frame\n");
 #endif
-
-  // https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
-  // GL_RGB, opengl attaches a 1 alpha, is that faster or is it faster to get
-  // the alpha from decompressor Might be faster to pass less bytes to opengl
-
-  // CGSize size = CVImageBufferGetEncodedSize(imageBuffer);
-  // printf("size %f %f\n", size.height, size.width);
-
-  // size = CVImageBufferGetDisplaySize(imageBuffer);
-  // printf("size %f %f\n", size.height, size.width);
-
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
+  CFRetain(imageBuffer);
 
   void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
   size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
@@ -70,16 +60,57 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   frame->frame.bytes_per_row = bytesPerRow;
   frame->frame.width = width;
   frame->frame.height = height;
-  frame->frame.data = (uint8_t *)baseAddress;
-  frame->frame.data_length = dataSize;
+  frame->imageBuffer = imageBuffer;
+
+#if 0
+  size_t len = width * height * (bytesPerRow / width);
+  uint8_t *buf = malloc(len * sizeof(*buf));
+  // memcpy(buf, (uint8_t *)baseAddress, len);
+  uint8_t *ba = (uint8_t *)baseAddress;
+  size_t doff = 0, boff = 0;
+  for (size_t line = 0; line < height; line++) {
+    memcpy(buf + doff, ba + boff, bytesPerRow);
+    doff += bytesPerRow;
+    boff += bytesPerRow;
+  }
+#else
+  size_t len = dataSize;
+  uint8_t *buf = (uint8_t *)baseAddress;
+#endif
+  frame->frame.data = buf;
+  frame->frame.data_length = len;
+
+  // FIXME: releasing too early :D
+  CFRelease(imageBuffer);
+  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+
+#if 0
+  FILE *f = fopen("test.ppm", "w+");
+  fprintf(f, "P3\n%lu %lu\n255\n", width, height);
+  for (size_t x = 0; x < len; x += 4) {
+    fprintf(f, "%u %u %u\n", buf[x + 2], buf[x + 1], buf[x]);
+  }
+  fflush(f);
+  fclose(f);
+  exit(0);
+#endif
 
   this->decoder.decompressed_frame_handler(&frame->frame);
+
+  // CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+  // CVPixelBufferRelease(imageBuffer);
 }
 
 void release_dframe(struct DFrame *frame) {
-  struct MacDFrame *this = (struct MacDFrame *)frame;
-  CVPixelBufferUnlockBaseAddress(this->imageBuffer, 0);
-  CVPixelBufferRelease(this->imageBuffer);
+  // FIXME: I don't know what kind of malarkey is going here
+  // but if we free anything, we get a nice "pointer being freed was not
+  // allocated"
+  // https://developer.apple.com/forums/thread/18986
+  // struct MacDFrame *this = (struct MacDFrame *)frame;
+  // CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+  // CVPixelBufferRelease(imageBuffer);
+  // CFRelease(imageBuffer);
+  // free(this);
 }
 
 CMSampleBufferRef
@@ -162,7 +193,8 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
   CFRelease(sample_buffer);
 }
 
-struct Decoder *setup_decoder(DecompressedFrameHandler decompressed_frame_handler) {
+struct Decoder *
+setup_decoder(DecompressedFrameHandler decompressed_frame_handler) {
   struct MacDecoder *this = malloc(sizeof(*this));
   if (!this)
     return NULL;
@@ -239,8 +271,15 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   CFDictionarySetValue(
       pixel_opts, kCVPixelBufferHeightKey,
       CFNumberCreate(NULL, kCFNumberSInt32Type, &dimensions.height));
-  CFDictionarySetValue(pixel_opts, kCVPixelBufferOpenGLCompatibilityKey,
-                       kCFBooleanTrue);
+
+  CFDictionarySetValue(pixel_opts, kCVPixelBufferExtendedPixelsLeftKey, @0);
+  CFDictionarySetValue(pixel_opts, kCVPixelBufferExtendedPixelsRightKey, @0);
+  CFDictionarySetValue(pixel_opts, kCVPixelBufferExtendedPixelsTopKey, @0);
+  CFDictionarySetValue(pixel_opts, kCVPixelBufferExtendedPixelsBottomKey, @0);
+  CFDictionarySetValue(pixel_opts, kCVPixelBufferPlaneAlignmentKey, @0);
+  CFDictionarySetValue(pixel_opts, kCVPixelBufferOpenGLCompatibilityKey, @YES);
+  CFDictionarySetValue(
+      pixel_opts, kCVPixelBufferIOSurfaceOpenGLTextureCompatibilityKey, @YES);
 
   CFTypeRef decompression_keys[] = {
       kVTDecompressionPropertyKey_RealTime,
@@ -262,6 +301,9 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
                                         &callback, &decompression_session);
   if (status)
     return status;
+
+  CFRelease(decompression_opts);
+  CFRelease(pixel_opts);
 
   CFRetain(decompression_session);
   CFRetain(format_description);

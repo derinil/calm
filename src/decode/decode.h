@@ -1,16 +1,15 @@
 #ifndef DECODE_H_
 #define DECODE_H_
 
+#include "../capture/capture.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "../capture/capture.h"
 
-struct DFrame
-{
+struct DFrame {
   // 32 bit bgra
   uint8_t *data;
   size_t data_length;
@@ -21,8 +20,7 @@ struct DFrame
 
 typedef void (*DecompressedFrameHandler)(struct DFrame *frame);
 
-struct Decoder
-{
+struct Decoder {
   // Height of the display in pixels.
   size_t height;
   // Width of the display in pixels.

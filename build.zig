@@ -73,6 +73,7 @@ pub fn build(b: *std.Build) void {
             // TODO: Remove these
             "-Wno-unused-variable",
             "-Wno-unused-parameter",
+            "-Wno-unused-but-set-variable",
         };
 
         for (macFrameworks) |f| {

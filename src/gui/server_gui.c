@@ -11,129 +11,81 @@
 #include "glad/glad.h"
 #include "../decode/decode.h"
 
-void drawImage(GLuint file,
-    float x,
-    float y,
-    float w,
-    float h,
-    float angle)
-{
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-    glPushMatrix();
-    glTranslatef(x, y, 0.0);
-    glRotatef(angle, 0.0, 0.0, 1.0);
-
-    glBindTexture(GL_TEXTURE_2D, file);
-    glEnable(GL_TEXTURE_2D);
-
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0, 0.0); glVertex3f(x, y, 0.0f);
-    glTexCoord2f(0.0, 2.0); glVertex3f(x, y + h, 0.0f);
-    glTexCoord2f(2.0, 2.0); glVertex3f(x + w, y + h, 0.0f);
-    glTexCoord2f(2.0, 0.0); glVertex3f(x + w, y, 0.0f);
-    glEnd();
-
-    glPopMatrix();
-}
-
-GLuint texture;
-void render()
-{
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glEnable(GL_DEPTH_TEST);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    const double w = glutGet( GLUT_WINDOW_WIDTH );
-    const double h = glutGet( GLUT_WINDOW_HEIGHT );
-    gluPerspective(45.0, w / h, 0.1, 1000.0);
-
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glTranslatef( 0, 0, -15 );
-
-    drawImage(texture, 0.0f, 0.0f, 4.0f, 4.0f, 0.0);
-
-    glutSwapBuffers();
-}
-
-
 static void draw(GLFWwindow *window, struct DStack *stack)
 {
-    GLuint framebuffer;
+    GLenum err = 0;
     GLuint texture;
-    int new_frame = 0;
+    int width, height;
     size_t img_width, img_height;
-    struct DFrame *dframe;
+    struct DFrame *dframe = NULL, *new_dframe = NULL;
     static ImVec4 clearColor;
     clearColor.x = 0.45f;
     clearColor.y = 0.55f;
     clearColor.z = 0.60f;
     clearColor.w = 1.00f;
 
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    err = glGetError();
+    if (err)
+        printf("params err %d\n", err);
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+        err = 0;
 
-        dframe = (struct DFrame *)dstack_pop(stack);
-        if (dframe)
+        new_dframe = (struct DFrame *)dstack_pop(stack);
+        if (new_dframe)
         {
-            glGenTextures(1, &texture);
+            if (dframe)
+                release_dframe(dframe);
+            dframe = new_dframe;
+            err = glGetError();
+            if (err)
+                printf("gl 1 err %d\n", err);
             glBindTexture(GL_TEXTURE_2D, texture);
-            glTexImage2D(GL_TEXTURE_2D, 0, 4, dframe->width, dframe->height, 0, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            new_frame = 1;
-            img_width = dframe->width;
-            img_height = dframe->height;
-            release_dframe(dframe);
+            err = glGetError();
+            if (err)
+                printf("gl 2 err %d\n", err);
+#if 0
+            FILE *f = fopen("test.ppm", "w+");
+            fprintf(f, "P3\n%lu %lu\n255\n", dframe->width, dframe->height);
+            for (size_t x = 0; x < dframe->data_length; x += 4)
+            {
+                fprintf(f, "%u %u %u\n", dframe->data[x + 2], dframe->data[x + 1], dframe->data[x]);
+            }
+            fflush(f);
+            fclose(f);
+            exit(0);
+#endif
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dframe->width, dframe->height, 0, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
+            err = glGetError();
+            if (err)
+                printf("gl 3 err %d\n", err);
         }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         igNewFrame();
 
+        width = dframe->width;
+        height = dframe->height;
+
         {
-            igBegin("Main", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
+            igBegin("video", NULL, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse);
             igSetWindowPos_Vec2((ImVec2){}, ImGuiCond_Always);
             ImGuiViewport *viewport = igGetMainViewport();
             ImDrawList *drawlist = igGetBackgroundDrawList_ViewportPtr(viewport);
-            ImVec2 size = viewport->Size;
-            size.x /= 4;
-            igSetWindowSize_Vec2(size, ImGuiCond_Always);
-
-            static float f = 0.0f;
-            static int counter = 0;
-
-            igText("This is some useful text");
-
-            igSliderFloat("Float", &f, 0.0f, 1.0f, "%.3f", 0);
-            igColorEdit3("clear color", (float *)&clearColor, 0);
-
-            ImVec2 buttonSize;
-            buttonSize.x = 0;
-            buttonSize.y = 0;
-            if (igButton("Button", buttonSize))
-                counter++;
-            igSameLine(0.0f, -1.0f);
-            igText("counter = %d", counter);
-
-            igText("Application average %.3f ms/frame (%.1f FPS)",
-                   1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
-
-            if (new_frame)
-            {
-                ImVec2 img_size;
-                img_size.x = img_width;
-                img_size.y = img_height;
-                // igImage((void *)(intptr_t)texture, img_size, (ImVec2){0}, (ImVec2){1, 1}, (ImVec4){0}, (ImVec4){0});
-                ImDrawList_AddImage(drawlist, (void *)(intptr_t)texture, (ImVec2){0}, img_size, (ImVec2){0}, (ImVec2){0}, 0);
-            }
-
+            igSetWindowSize_Vec2(viewport->Size, ImGuiCond_Always);
+            igImage((void *)(intptr_t)texture, (ImVec2){width, height}, (ImVec2){0, 0}, (ImVec2){1, 1}, (ImVec4){1, 1, 1, 1}, (ImVec4){0, 0, 0, 0});
             igEnd();
         }
 
@@ -141,6 +93,15 @@ static void draw(GLFWwindow *window, struct DStack *stack)
         glClear(GL_COLOR_BUFFER_BIT);
         igRender();
         ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+
+        err = glGetError();
+        if (err)
+            printf("bind err %d\n", err);
+
+        err = glGetError();
+        if (err)
+            printf("end err %d\n", err);
+
         glfwSwapBuffers(window);
     }
 }
