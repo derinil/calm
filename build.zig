@@ -49,8 +49,6 @@ pub fn build(b: *std.Build) void {
     exe.linkLibC();
     exe.linkLibCpp();
 
-    // exe.addIncludePath("src");
-
     glfw.link(b, exe, .{}) catch unreachable;
     exe.addIncludePath("deps/glfw/upstream/glfw/include/");
     exe.addIncludePath("deps/glad/include/");
