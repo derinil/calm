@@ -14,6 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+https://developer.apple.com/forums/thread/18986
+https://developer.apple.com/forums/thread/725744
+https://stackoverflow.com/questions/29050062/i-want-to-release-the-cvpixelbufferref-in-swift
+*/
+
 struct MacDecoder {
   struct Decoder decoder;
   VTDecompressionSessionRef decompression_session;
@@ -48,8 +54,9 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
 #if 0
   printf("received decompressed frame\n");
 #endif
+
+  CVPixelBufferRetain(imageBuffer);
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
-  CFRetain(imageBuffer);
 
   void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
   size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
@@ -80,10 +87,6 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   frame->frame.data = buf;
   frame->frame.data_length = len;
 
-  // FIXME: releasing too early :D
-  CFRelease(imageBuffer);
-  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-
 #if 0
   FILE *f = fopen("test.ppm", "w+");
   fprintf(f, "P3\n%lu %lu\n255\n", width, height);
@@ -96,48 +99,25 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
 #endif
 
   this->decoder.decompressed_frame_handler(&frame->frame);
-
-  // CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-  // CVPixelBufferRelease(imageBuffer);
 }
 
 void release_dframe(struct DFrame *frame) {
-  // FIXME: I don't know what kind of malarkey is going here
-  // but if we free anything, we get a nice "pointer being freed was not
-  // allocated"
-  // https://developer.apple.com/forums/thread/18986
-  // struct MacDFrame *this = (struct MacDFrame *)frame;
-  // CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-  // CVPixelBufferRelease(imageBuffer);
-  // CFRelease(imageBuffer);
-  // free(this);
+  struct MacDFrame *this = (struct MacDFrame *)frame;
+  CVPixelBufferUnlockBaseAddress(this->imageBuffer, 0);
+  CVPixelBufferRelease(this->imageBuffer);
+  free(this);
 }
 
 CMSampleBufferRef
 create_sample_buffer(CMFormatDescriptionRef format_description,
                      struct CFrame *frame) {
   OSStatus status;
-  // CMBlockBufferRef *block_bufs;
   CMBlockBufferRef block_buf;
   CMSampleBufferRef sample_buffer;
 
-  const size_t nalu_header_length = 4;
-
-  // block_bufs = malloc(frame->nalus_count * sizeof(*block_bufs));
-  // if (!block_bufs)
-  //   return NULL;
-
-  // for (size_t x = 0; x < frame->nalus_count; x++) {
-  //   status = CMBlockBufferCreateWithMemoryBlock(
-  //       NULL, frame->nalus[x], frame->nalus_lengths[x], NULL, NULL, 0,
-  //       frame->nalus_lengths[x], 0, &block_bufs[x]);
-  //   if (status)
-  //     return NULL;
-  // }
-
   status = CMBlockBufferCreateWithMemoryBlock(
-      NULL, frame->solid_frame, frame->solid_frame_length, NULL, NULL, 0,
-      frame->solid_frame_length, 0, &block_buf);
+      NULL, frame->frame, frame->frame_length, NULL, NULL, 0,
+      frame->frame_length, 0, &block_buf);
   if (status)
     return NULL;
 
@@ -146,13 +126,6 @@ create_sample_buffer(CMFormatDescriptionRef format_description,
                                 &sample_buffer);
   if (status)
     return NULL;
-
-  // for (size_t i = 0; i < frame->frame_length; i++) {
-  //   printf("%02x", frame->frame[i]);
-  // }
-  // printf("\n");
-  //
-  // nalu_len = CFSwapInt32BigToHost(nalu_len);
 
   if (block_buf)
     CFRelease(block_buf);
@@ -185,10 +158,15 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
   VTDecodeFrameFlags decode_flags =
       kVTDecodeFrame_EnableAsynchronousDecompression;
 
+#if 0
   status = VTDecompressionSessionDecodeFrame(
       this->decompression_session, sample_buffer, decode_flags, this, NULL);
   if (status)
     printf("decodeframe failed with %d\n", status);
+#else
+  VTDecompressionSessionDecodeFrame(this->decompression_session, sample_buffer,
+                                    decode_flags, this, NULL);
+#endif
 
   CFRelease(sample_buffer);
 }
@@ -210,28 +188,12 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   // TODO: maybe simply remove this check so we can create new session
   // with new pps, CFRelease format and session
   if (this->decompression_session) {
-    printf("exists");
     return 0;
   }
 
-  // TODO: make this variable?
-  const int nalu_header_length = 4;
-
-  for (size_t i = 0; i < frame->parameter_sets_count; i++) {
-    // Trim the nalu starting code/header
-    // frame->parameter_sets[i] = frame->parameter_sets[i] + nalu_header_length;
-#if 0
-    for (size_t x = 0; x < frame->parameter_sets_lengths[i]; x++) {
-      printf("%02x", frame->parameter_sets[i][x]);
-    }
-    printf("\n");
-#endif
-  }
+  // TODO: NALUnitHeaderLength: 4 works for vt compressed frames
 
   CMFormatDescriptionRef format_description = NULL;
-  // TODO: Figure out NALUnitHeaderLength, 2 seems to be working
-  // Size, in bytes, of the NALUnitLength field in an AVC video sample or AVC
-  // parameter set sample. Pass 1, 2, or 4.
   OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
       NULL, frame->parameter_sets_count,
       (const unsigned char *const *)frame->parameter_sets,

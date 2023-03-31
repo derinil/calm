@@ -30,25 +30,40 @@ struct MacCapturer {
   VTCompressionSessionRef compression_session;
 };
 
+struct MacCFrame {
+  struct CFrame frame;
+  NSMutableData **datas;
+  size_t datas_len;
+  CMBlockBufferRef block_buffer;
+};
+
+void release_cframe(struct CFrame *frame) {
+  NSMutableData *data;
+  struct MacCFrame *this = (struct MacCFrame *)frame;
+  for (size_t x = 0; x < this->datas_len; x++) {
+    data = this->datas[x];
+    [data release];
+  }
+  CFRelease(this->block_buffer);
+  free(this);
+}
+
 void compressed_frame_callback(void *output_callback_ref_con,
                                void *source_frame_ref_con, OSStatus status,
                                VTEncodeInfoFlags info_flags,
                                CMSampleBufferRef sample_buffer) {
-  struct CFrame *frame = malloc(sizeof(*frame));
+  NSMutableData *ps_data;
+  CMBlockBufferRef block_buffer;
+  struct MacCFrame *frame = malloc(sizeof(*frame));
   if (!frame)
-    goto end;
+    return;
   memset(frame, 0, sizeof(*frame));
 
   if (status == kVTEncodeInfo_FrameDropped || !sample_buffer)
     return;
 
-  CFRetain(sample_buffer);
-
   CompressedFrameHandler compressed_frame_handler =
       (CompressedFrameHandler)output_callback_ref_con;
-
-  // TODO: Taken from
-  // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
 
   // Find out if the sample buffer contains an I-Frame.
   // If so we will write the SPS and PPS NAL units to the elementary stream.
@@ -63,13 +78,6 @@ void compressed_frame_callback(void *output_callback_ref_con,
     // An I-Frame is a sync frame
     is_key = !keyExists || !CFBooleanGetValue(notSync);
   }
-
-  // This is the start code that we will write to
-  // the elementary stream before every NAL unit
-  // NOTE: we simply don't use start code, if we need to stitch units together
-  // we can do it after the fact in the decoder
-  // const size_t startCodeLength = 4;
-  // const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
 
 // TODO: Allocate better
 // 10kb seems to be around average
@@ -87,20 +95,25 @@ void compressed_frame_callback(void *output_callback_ref_con,
     CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description, 0, NULL,
                                                        NULL, &ps_len, NULL);
 
-    frame->parameter_sets = malloc(ps_len * sizeof(*(frame->parameter_sets)));
-    if (!frame->parameter_sets)
+    frame->frame.parameter_sets =
+        malloc(ps_len * sizeof(*(frame->frame.parameter_sets)));
+    if (!frame->frame.parameter_sets)
       return;
 
-    frame->parameter_sets_lengths =
-        malloc(ps_len * sizeof(*(frame->parameter_sets_lengths)));
-    if (!frame->parameter_sets_lengths)
+    frame->frame.parameter_sets_lengths =
+        malloc(ps_len * sizeof(*(frame->frame.parameter_sets_lengths)));
+    if (!frame->frame.parameter_sets_lengths)
       return;
 
-    frame->parameter_sets_count = ps_len;
+    frame->frame.parameter_sets_count = ps_len;
+
+    frame->datas = malloc(ps_len * sizeof(*(frame->datas)));
+    if (!frame->datas)
+      return;
 
     // Write each parameter set to the elementary stream
     for (size_t i = 0; i < ps_len; i++) {
-      NSMutableData *ps_data = [NSMutableData dataWithCapacity:AVG_PS_LEN];
+      ps_data = [NSMutableData dataWithCapacity:AVG_PS_LEN];
       const uint8_t *psp;
       size_t psp_len;
       CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description, i, &psp,
@@ -110,73 +123,29 @@ void compressed_frame_callback(void *output_callback_ref_con,
       // [ps_data appendBytes:startCode length:startCodeLength];
       [ps_data appendBytes:psp length:psp_len];
 
-      frame->parameter_sets[i] = ps_data.mutableBytes;
-      frame->parameter_sets_lengths[i] = ps_data.length;
+      frame->datas[i] = ps_data;
+      frame->frame.parameter_sets[i] = ps_data.mutableBytes;
+      frame->frame.parameter_sets_lengths[i] = ps_data.length;
     }
 
-    frame->is_keyframe = 1;
+    frame->frame.is_keyframe = 1;
   }
+
+  block_buffer = CMSampleBufferGetDataBuffer(sample_buffer);
 
   // Get a pointer to the raw AVCC NAL unit data in the sample buffer
   size_t block_buffer_length;
   uint8_t *buffer = NULL;
-  CMBlockBufferGetDataPointer(CMSampleBufferGetDataBuffer(sample_buffer), 0,
-                              NULL, &block_buffer_length, (char **)&buffer);
+  CMBlockBufferGetDataPointer(block_buffer, 0, NULL, &block_buffer_length,
+                              (char **)&buffer);
 
-  NSMutableData *solid_frame = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
+  frame->frame.frame = buffer;
+  frame->frame.frame_length = block_buffer_length;
 
-  // frame->nalus = malloc(ps_len * sizeof(*(frame->parameter_sets)));
-  //   if (!frame->parameter_sets)
-  //     return;
+  CFRetain(block_buffer);
+  frame->block_buffer = block_buffer;
 
-  //   frame->nalus_lengths =
-  //       malloc(ps_len * sizeof(*(frame->parameter_sets_lengths)));
-  //   if (!frame->parameter_sets_lengths)
-  //     return;
-
-  //   frame->parameter_sets_count = ps_len;
-
-  // Loop through all the NAL units in the block buffer
-  // and write them to the elementary stream with
-  // start codes instead of AVCC length headers
-  size_t offset = 0;
-  static const int avcc_header_length = 4;
-  while (offset < block_buffer_length - avcc_header_length) {
-    NSMutableData *frame_data = [NSMutableData dataWithCapacity:AVG_DAT_LEN];
-    // Read the NAL unit length
-    uint32_t nalu_len;
-    memcpy(&nalu_len, buffer + offset, avcc_header_length);
-    // Convert the length value from Big-endian to Little-endian
-    nalu_len = CFSwapInt32BigToHost(nalu_len);
-    // Write start code to the elementary stream
-    // [frame_data appendBytes:startCode length:startCodeLength];
-    // Write the NAL unit WITH the AVCC length header to the elementary
-    // stream
-    [frame_data appendBytes:buffer + offset
-                     length:nalu_len + avcc_header_length];
-
-    // frame->nalus[frame->nalus_count] = frame_data.mutableBytes;
-    // frame->nalus_lengths[frame->nalus_count] = frame_data.length;
-    // frame->nalus_count++;
-
-    // Move to the next NAL unit in the block buffer
-    offset += avcc_header_length + nalu_len;
-  }
-
-  [solid_frame appendBytes:buffer length:block_buffer_length];
-  frame->solid_frame = solid_frame.mutableBytes;
-  frame->solid_frame_length = solid_frame.length;
-
-  // printf("got nal count %lu\n", frame->solid_frame_length);
-
-  // uint8_t *bytes = frame_data.mutableBytes;
-  // size_t length = frame_data.length;
-
-  // frame->frame = bytes;
-  // frame->frame_length = length;
-  compressed_frame_handler(frame);
-end:
-  CFRelease(sample_buffer);
+  compressed_frame_handler(&frame->frame);
 }
 
 void raw_frame_callback(VTCompressionSessionRef compression_session,
@@ -216,8 +185,9 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
   CVPixelBufferRelease(image_buffer);
   IOSurfaceDecrementUseCount(surface);
   CFRelease(surface);
-
+#if 0
   printf("received frame with difference %.0f\n", curr - prev_time);
+#endif
   prev_time = curr;
 }
 

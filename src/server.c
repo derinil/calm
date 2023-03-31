@@ -13,21 +13,21 @@ struct Server *g_server;
 
 void decompressed_frame_callback(struct DFrame *frame)
 {
+#if 0
     printf("got decoded frame with length %lu\n", frame->data_length);
+#endif
     dstack_push(g_server->stack, frame);
-}
-
-void decompress_frame(struct CFrame *frame)
-{
-    decode_frame(g_server->decoder, frame);
 }
 
 void frame_callback(struct CFrame *frame)
 {
     if (!frame)
         printf("null frame!!\n");
-    printf("received compressed frame with length %lu\n", frame->solid_frame_length);
-    decompress_frame(frame);
+#if 0
+    printf("received compressed frame with length %lu\n", frame->frame_length);
+#endif
+    decode_frame(g_server->decoder, frame);
+    release_cframe(frame);
 }
 
 void *capture_thread(void *args)

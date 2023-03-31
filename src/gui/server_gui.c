@@ -90,7 +90,6 @@ int handle_server_gui(struct DStack *stack)
     if (!window)
         return 1;
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    // NOTE: can use glfwWaitEvents(); to update gui only on input event
     draw(window, stack);
     destroy_window(window);
     return 0;

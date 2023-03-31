@@ -40,7 +40,6 @@ struct Decoder *setup_decoder(DecompressedFrameHandler handler);
 int start_decoder(struct Decoder *decoder, struct CFrame *frame);
 void decode_frame(struct Decoder *decoder, struct CFrame *frame);
 int stop_decoder(struct Decoder *decoder);
-// TODO: do this for compressed frames too
 void release_dframe(struct DFrame *frame);
 
 #endif

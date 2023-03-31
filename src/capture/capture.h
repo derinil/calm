@@ -12,11 +12,8 @@ struct CFrame
   uint8_t **parameter_sets;
   size_t parameter_sets_count;
   size_t *parameter_sets_lengths;
-  uint8_t **nalus;
-  size_t nalus_count;
-  size_t *nalus_lengths;
-  uint8_t *solid_frame;
-  size_t solid_frame_length;
+  uint8_t *frame;
+  size_t frame_length;
 };
 
 // TODO: use uint8_t over char
@@ -42,8 +39,6 @@ struct Capturer *setup_capturer(CompressedFrameHandler handler);
 // this does not block.
 int start_capture(struct Capturer *capturer);
 int stop_capture(struct Capturer *capturer);
-// release_compressed_frame releases/frees a compressed frame.
-// should be called after the frame is processed in the handler.
-int release_compressed_frame(struct CFrame *frame);
+void release_cframe(struct CFrame *frame);
 
 #endif
