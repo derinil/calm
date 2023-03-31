@@ -31,6 +31,17 @@ struct MacDFrame {
   CVImageBufferRef imageBuffer;
 };
 
+void release_dframe(struct DFrame *frame) {
+  struct MacDFrame *this = (struct MacDFrame *)frame;
+#if 1
+  free(this->frame.data);
+#else
+  CVPixelBufferUnlockBaseAddress(this->imageBuffer, 0);
+  CVPixelBufferRelease(this->imageBuffer);
+#endif
+  free(this);
+}
+
 void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
                                      void *sourceFrameRefCon, OSStatus status,
                                      VTDecodeInfoFlags infoFlags,
@@ -55,7 +66,9 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   printf("received decompressed frame\n");
 #endif
 
+#if 0
   CVPixelBufferRetain(imageBuffer);
+#endif
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
   void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
@@ -67,12 +80,15 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   frame->frame.bytes_per_row = bytesPerRow;
   frame->frame.width = width;
   frame->frame.height = height;
-  frame->imageBuffer = imageBuffer;
 
-#if 0
+#if 1
   size_t len = width * height * (bytesPerRow / width);
   uint8_t *buf = malloc(len * sizeof(*buf));
-  // memcpy(buf, (uint8_t *)baseAddress, len);
+  memcpy(buf, (uint8_t *)baseAddress, len);
+  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+  // CVPixelBufferRelease(imageBuffer);
+#if 0
+  frame->imageBuffer = imageBuffer;
   uint8_t *ba = (uint8_t *)baseAddress;
   size_t doff = 0, boff = 0;
   for (size_t line = 0; line < height; line++) {
@@ -80,10 +96,12 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
     doff += bytesPerRow;
     boff += bytesPerRow;
   }
+#endif
 #else
   size_t len = dataSize;
   uint8_t *buf = (uint8_t *)baseAddress;
 #endif
+
   frame->frame.data = buf;
   frame->frame.data_length = len;
 
@@ -101,38 +119,35 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   this->decoder.decompressed_frame_handler(&frame->frame);
 }
 
-void release_dframe(struct DFrame *frame) {
-  struct MacDFrame *this = (struct MacDFrame *)frame;
-  CVPixelBufferUnlockBaseAddress(this->imageBuffer, 0);
-  CVPixelBufferRelease(this->imageBuffer);
-  free(this);
-}
-
 CMSampleBufferRef
 create_sample_buffer(CMFormatDescriptionRef format_description,
                      struct CFrame *frame) {
   OSStatus status;
-  CMBlockBufferRef block_buf;
-  CMSampleBufferRef sample_buffer;
+  CMBlockBufferRef block_buf = NULL;
+  CMSampleBufferRef sample_buf = NULL;
 
   status = CMBlockBufferCreateWithMemoryBlock(
       NULL, frame->frame, frame->frame_length, NULL, NULL, 0,
       frame->frame_length, 0, &block_buf);
   if (status)
-    return NULL;
+    goto end;
 
   status = CMSampleBufferCreate(NULL, block_buf, TRUE, NULL, NULL,
                                 format_description, 1, 0, NULL, 0, NULL,
-                                &sample_buffer);
+                                &sample_buf);
   if (status)
-    return NULL;
+    goto end;
 
   if (block_buf)
     CFRelease(block_buf);
-
-  CFRetain(sample_buffer);
-
-  return sample_buffer;
+  CFRetain(sample_buf);
+  return sample_buf;
+end:
+  if (block_buf)
+    CFRelease(block_buf);
+  if (sample_buf)
+    CFRelease(sample_buf);
+  return NULL;
 }
 
 void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
@@ -157,7 +172,6 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
 
   VTDecodeFrameFlags decode_flags =
       kVTDecodeFrame_EnableAsynchronousDecompression;
-
 #if 0
   status = VTDecompressionSessionDecodeFrame(
       this->decompression_session, sample_buffer, decode_flags, this, NULL);
@@ -167,7 +181,7 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
   VTDecompressionSessionDecodeFrame(this->decompression_session, sample_buffer,
                                     decode_flags, this, NULL);
 #endif
-
+  CMSampleBufferInvalidate(sample_buffer);
   CFRelease(sample_buffer);
 }
 
@@ -281,5 +295,6 @@ int stop_decoder(struct Decoder *decoder) {
   VTDecompressionSessionWaitForAsynchronousFrames(this->decompression_session);
   VTDecompressionSessionInvalidate(this->decompression_session);
   CFRelease(this->decompression_session);
+  CFRelease(this->format_description);
   return 0;
 }
