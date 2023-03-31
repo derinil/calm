@@ -247,7 +247,7 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   CMVideoDimensions dimensions =
       CMVideoFormatDescriptionGetDimensions(format_description);
 
-#if 1
+#if 0
   printf("got dimensions %d %d\n", dimensions.width, dimensions.height);
 #endif
 
