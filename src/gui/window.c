@@ -28,13 +28,13 @@ GLFWwindow *setup_window()
     return NULL;
 
 #ifdef __APPLE__
-  const char *glsl_version = "#version 150";
+  const char *glsl_version = "#version 330";
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #else
-  const char *glsl_version = "#version 130";
+  const char *glsl_version = "#version 330";
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 #endif
@@ -63,6 +63,14 @@ GLFWwindow *setup_window()
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
+
+  // glMatrixMode(GL_PROJECTION); // switch to projection matrix
+  // glLoadIdentity();            // reset projection matrix
+  // glOrtho(0, width, 0, height, 0, 1);
+  // // gluOrtho2D(0, width, 0, height);  // set 2D orthographic projection to match viewport dimensions
+  // glMatrixMode(GL_MODELVIEW);       // switch back to modelview matrix
+  // glLoadIdentity();                 // reset modelview matrix
+  // glClearColor(1.0, 1.0, 1.0, 0.0); // set clear color to white
 
   return window;
 }

@@ -11,11 +11,48 @@
 #include "glad/glad.h"
 #include "../decode/decode.h"
 
+const char *vertex_shader_source = "#version 330 core\n"
+                                   "layout (location = 0) in vec3 aPos;\n"
+                                   "layout (location = 1) in vec3 aColor;\n"
+                                   "layout (location = 2) in vec2 aTexCoord;\n"
+                                   "out vec3 ourColor;\n"
+                                   "out vec2 TexCoord;\n"
+                                   "void main()\n"
+                                   "{\n"
+                                   "    gl_Position = vec4(aPos, 1.0);\n"
+                                   "    ourColor = aColor;\n"
+                                   //    Flip the y coordinate because opengl is dumb!!
+                                   "    TexCoord = vec2(aTexCoord.x, 1-aTexCoord.y);\n"
+                                   "}\0";
+
+const char *fragment_shader_source = "#version 330 core\n"
+                                     "out vec4 FragColor;\n"
+                                     "in vec3 ourColor;\n"
+                                     "in vec2 TexCoord;\n"
+                                     "uniform sampler2D ourTexture;\n"
+                                     "void main()\n"
+                                     "{\n"
+                                     "    FragColor = texture(ourTexture, TexCoord);\n"
+                                     "}\0";
+
 static void draw(GLFWwindow *window, struct DStack *stack)
 {
+    GLenum err = 0;
     GLuint texture;
+    unsigned int vert_shad, frag_shad, shader_prog;
     int width = 0, height = 0;
     struct DFrame *dframe = NULL, *new_dframe = NULL;
+    float vertices[] = {
+        // positions          // colors           // texture coords
+        1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,   // top right
+        1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,  // bottom right
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
+        -1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f   // top left
+    };
+    unsigned int indices[] = {
+        0, 1, 3, // first triangle
+        1, 2, 3  // second triangle
+    };
 
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -23,6 +60,41 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    unsigned int VBO, VAO, EBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    vert_shad = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vert_shad, 1, &vertex_shader_source, NULL);
+    glCompileShader(vert_shad);
+    unsigned int fragmentShader;
+    frag_shad = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(frag_shad, 1, &fragment_shader_source, NULL);
+    glCompileShader(frag_shad);
+    shader_prog = glCreateProgram();
+    glAttachShader(shader_prog, vert_shad);
+    glAttachShader(shader_prog, frag_shad);
+    glLinkProgram(shader_prog);
+    glUseProgram(shader_prog);
+    glDeleteShader(vert_shad);
+    glDeleteShader(frag_shad);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -54,25 +126,23 @@ static void draw(GLFWwindow *window, struct DStack *stack)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
         }
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        igNewFrame();
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        {
-            igBegin("video", NULL, ImGuiWindowFlags_NoSavedSettings);
-            igSetWindowPos_Vec2((ImVec2){0}, ImGuiCond_Always);
-            ImGuiViewport *viewport = igGetMainViewport();
-            igSetWindowSize_Vec2(viewport->Size, ImGuiCond_Always);
-            ImVec2 max;
-            igGetWindowContentRegionMax(&max);
-            igImage((void *)(intptr_t)texture, max, (ImVec2){0, 0}, (ImVec2){1, 1}, (ImVec4){1, 1, 1, 1}, (ImVec4){0, 0, 0, 0});
-            igEnd();
-        }
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
 
-        igRender();
-        ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+        glUseProgram(shader_prog);
+        glBindVertexArray(VAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
         glfwSwapBuffers(window);
     }
+
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
+    glDeleteProgram(shader_prog);
 }
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
