@@ -34,7 +34,7 @@ int dstack_ready(struct DStack *ds)
 }
 
 // pop waits until there is anything to pop
-void *dstack_pop(struct DStack *ds)
+void *dstack_pop(struct DStack *ds, int should_remove)
 {
     void *el = NULL;
     // pthread_cond_wait(&ds->ready, &ds->lock);
@@ -42,6 +42,8 @@ void *dstack_pop(struct DStack *ds)
     if (ds->read_curr == ds->write_curr)
         goto end;
     el = ds->elements[ds->read_curr];
+    if (should_remove)
+        goto end;
     ds->read_curr++;
     if (ds->read_curr > MAX_DS_LEN)
         ds->read_curr = 0;

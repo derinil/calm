@@ -10,7 +10,8 @@
 // Designed for 1 thread writing, 1 thread reading
 // Reading thread should be able to wait for an update
 // Having a mutex at this point will not be too much of a bottleneck
-struct DStack {
+struct DStack
+{
   size_t write_curr;
   size_t read_curr;
   void *elements[MAX_DS_LEN];
@@ -20,7 +21,9 @@ struct DStack {
 
 struct DStack *create_dstack();
 void dstack_push(struct DStack *ds, void *element);
-void *dstack_pop(struct DStack *ds);
+// We can choose to not actually "pop" the element
+// from the stack, if we want to pop the same frame multiple times
+void *dstack_pop(struct DStack *ds, int should_remove);
 int dstack_ready(struct DStack *ds);
 
 #endif

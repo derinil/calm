@@ -28,7 +28,7 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     {
         glfwPollEvents();
 
-        new_dframe = (struct DFrame *)dstack_pop(stack);
+        new_dframe = (struct DFrame *)dstack_pop(stack, 1);
         if (new_dframe)
         {
             if (dframe)
