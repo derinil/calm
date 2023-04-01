@@ -42,7 +42,7 @@ void *dstack_pop(struct DStack *ds, int should_remove)
     if (ds->read_curr == ds->write_curr)
         goto end;
     el = ds->elements[ds->read_curr];
-    if (should_remove)
+    if (!should_remove)
         goto end;
     ds->read_curr++;
     if (ds->read_curr > MAX_DS_LEN)
