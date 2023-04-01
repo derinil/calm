@@ -136,6 +136,37 @@ static void draw(GLFWwindow *window, struct DStack *stack)
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        igNewFrame();
+        {
+            igBegin("Main", NULL, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize);
+            ImGuiViewport *viewport = igGetMainViewport();
+
+            ImVec2 size = viewport->Size;
+            size.x /= 4;
+            igSetWindowSize_Vec2(size, ImGuiCond_Always);
+
+            static float f = 0.0f;
+            static int counter = 0;
+
+            igText("This is some useful text");
+
+            ImVec2 buttonSize;
+            buttonSize.x = 0;
+            buttonSize.y = 0;
+            if (igButton("Button", buttonSize))
+                counter++;
+            igSameLine(0.0f, -1.0f);
+            igText("counter = %d", counter);
+
+            igText("Application average %.3f ms/frame (%.1f FPS)",
+                   1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
+            igEnd();
+        }
+        igRender();
+        ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+
         glfwSwapBuffers(window);
     }
 
