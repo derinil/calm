@@ -11,12 +11,18 @@
 
 struct Server *g_server;
 
+volatile int fc = 0;
+// pushed decompressed frame 5850
+// pushed decompressed frame 5855
+// pushed decompressed frame 5857
+
 void decompressed_frame_callback(struct DFrame *frame)
 {
 #if 0
     printf("got decoded frame with length %lu\n", frame->data_length);
 #endif
     dstack_push(g_server->stack, frame);
+    printf("pushed decompressed frame %d\n", fc++);
 }
 
 void frame_callback(struct CFrame *frame)

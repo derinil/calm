@@ -66,7 +66,7 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   printf("received decompressed frame\n");
 #endif
 
-#if 0
+#if 1
   CVPixelBufferRetain(imageBuffer);
 #endif
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
@@ -81,12 +81,19 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   frame->frame.width = width;
   frame->frame.height = height;
 
-#if 1
+#if 0
+  size_t len = dataSize;
+  uint8_t *buf = malloc(len * sizeof(*buf));
+  memcpy(buf, (uint8_t *)baseAddress, len);
+  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+  CVPixelBufferRelease(imageBuffer);
+#elif 1
   size_t len = width * height * (bytesPerRow / width);
   uint8_t *buf = malloc(len * sizeof(*buf));
   memcpy(buf, (uint8_t *)baseAddress, len);
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-  // CVPixelBufferRelease(imageBuffer);
+  // TODO: this causes a segfault :(
+  CVPixelBufferRelease(imageBuffer);
 #if 0
   frame->imageBuffer = imageBuffer;
   uint8_t *ba = (uint8_t *)baseAddress;

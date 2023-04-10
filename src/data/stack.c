@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <strings.h>
 #include "stack.h"
+#include <stdio.h>
 
 struct DStack *create_dstack()
 {
@@ -19,9 +20,11 @@ struct DStack *create_dstack()
 void dstack_push(struct DStack *ds, void *element)
 {
     pthread_mutex_lock(&ds->lock);
+    // TODO: memory leak!
+    // should have a callback thing to release an element before overriding it
     ds->elements[ds->write_curr] = element;
     ds->write_curr++;
-    if (ds->write_curr > MAX_DS_LEN)
+    if (ds->write_curr == MAX_DS_LEN)
         ds->write_curr = 0;
     // pthread_cond_signal(&ds->ready);
     pthread_mutex_unlock(&ds->lock);
@@ -36,16 +39,17 @@ int dstack_ready(struct DStack *ds)
 // pop waits until there is anything to pop
 void *dstack_pop(struct DStack *ds, int should_remove)
 {
-    void *el = NULL;
+    void *el;
     // pthread_cond_wait(&ds->ready, &ds->lock);
     pthread_mutex_lock(&ds->lock);
-    if (ds->read_curr == ds->write_curr)
+    el = NULL;
+    if (ds->read_curr >= ds->write_curr)
         goto end;
     el = ds->elements[ds->read_curr];
     if (!should_remove)
         goto end;
     ds->read_curr++;
-    if (ds->read_curr > MAX_DS_LEN)
+    if (ds->read_curr == MAX_DS_LEN)
         ds->read_curr = 0;
 end:
     pthread_mutex_unlock(&ds->lock);
