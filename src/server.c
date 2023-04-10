@@ -43,7 +43,7 @@ void *capture_thread(void *args)
 
 void *server_net_thread(void *args)
 {
-#if 1
+#if 0
     return NULL;
 #endif
     int err;
