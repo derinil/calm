@@ -42,7 +42,7 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     unsigned int vert_shad, frag_shad, shader_prog;
     int width = 0, height = 0;
     int first_run = 1;
-    struct DFrame *dframe = NULL, *new_dframe = NULL;
+    struct DFrame *dframe = NULL;
     float vertices[] = {
         // positions          // colors           // texture coords
         1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,   // top right
@@ -101,12 +101,9 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     {
         glfwPollEvents();
 
-        new_dframe = (struct DFrame *)dstack_pop(stack, 1);
-        if (new_dframe)
+        dframe = (struct DFrame *)dstack_pop(stack, 1);
+        if (dframe)
         {
-            if (dframe)
-                release_dframe(dframe);
-            dframe = new_dframe;
             width = dframe->width;
             height = dframe->height;
 #if 0
@@ -124,6 +121,7 @@ static void draw(GLFWwindow *window, struct DStack *stack)
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
             glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 #endif
+            // TODO: remove branch at some point
             if (first_run)
             {
                 first_run = 0;
@@ -133,10 +131,12 @@ static void draw(GLFWwindow *window, struct DStack *stack)
             {
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
             }
+
+            release_dframe(dframe);
         }
 
         // Update only if new frame
-        if (new_dframe)
+        if (dframe)
         {
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -147,38 +147,40 @@ static void draw(GLFWwindow *window, struct DStack *stack)
             glUseProgram(shader_prog);
             glBindVertexArray(VAO);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+            dframe = NULL;
         }
 
-        // ImGui_ImplOpenGL3_NewFrame();
-        // ImGui_ImplGlfw_NewFrame();
-        // igNewFrame();
-        // {
-        //     igBegin("Main", NULL, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize);
-        //     ImGuiViewport *viewport = igGetMainViewport();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        igNewFrame();
+        {
+            igBegin("Main", NULL, ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoResize);
+            ImGuiViewport *viewport = igGetMainViewport();
 
-        //     ImVec2 size = viewport->Size;
-        //     size.x /= 4;
-        //     igSetWindowSize_Vec2(size, ImGuiCond_Always);
+            ImVec2 size = viewport->Size;
+            size.x /= 4;
+            igSetWindowSize_Vec2(size, ImGuiCond_Always);
 
-        //     static float f = 0.0f;
-        //     static int counter = 0;
+            static float f = 0.0f;
+            static int counter = 0;
 
-        //     igText("This is some useful text");
+            igText("This is some useful text");
 
-        //     ImVec2 buttonSize;
-        //     buttonSize.x = 0;
-        //     buttonSize.y = 0;
-        //     if (igButton("Button", buttonSize))
-        //         counter++;
-        //     igSameLine(0.0f, -1.0f);
-        //     igText("counter = %d", counter);
+            ImVec2 buttonSize;
+            buttonSize.x = 0;
+            buttonSize.y = 0;
+            if (igButton("Button", buttonSize))
+                counter++;
+            igSameLine(0.0f, -1.0f);
+            igText("counter = %d", counter);
 
-        //     igText("Application average %.3f ms/frame (%.1f FPS)",
-        //            1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
-        //     igEnd();
-        // }
-        // igRender();
-        // ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+            igText("Application average %.3f ms/frame (%.1f FPS)",
+                   1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
+            igEnd();
+        }
+        igRender();
+        ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
 
         glfwSwapBuffers(window);
     }
