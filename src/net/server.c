@@ -69,7 +69,7 @@ int listen_connections(ENetHost *server)
     ENetEvent event;
 
     // TODO: leaving this at 1 second for now, might want to lower the interval
-    while (enet_host_service(server, &event, 1000) > 0)
+    while (enet_host_service(server, &event, 1000) >= 0)
     {
         // printf("lol %d\n", event.type);
         printf("lol\n");
