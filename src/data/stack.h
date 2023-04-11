@@ -14,6 +14,7 @@ struct DStack
 {
   size_t write_curr;
   size_t read_curr;
+  size_t length;
   void *elements[MAX_DS_LEN];
   pthread_mutex_t lock;
   pthread_cond_t ready;

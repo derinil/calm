@@ -20,10 +20,11 @@ struct DStack *create_dstack()
 void dstack_push(struct DStack *ds, void *element)
 {
     pthread_mutex_lock(&ds->lock);
-    // TODO: memory leak!
-    // should have a callback thing to release an element before overriding it
+    // TODO: memory leak! should have a callback thing to release an element before overriding it
+    // TODO: stops working after max len
     ds->elements[ds->write_curr] = element;
     ds->write_curr++;
+    ds->length++;
     if (ds->write_curr == MAX_DS_LEN)
         ds->write_curr = 0;
     // pthread_cond_signal(&ds->ready);
@@ -39,16 +40,16 @@ int dstack_ready(struct DStack *ds)
 // pop waits until there is anything to pop
 void *dstack_pop(struct DStack *ds, int should_remove)
 {
-    void *el;
+    void *el = NULL;
     // pthread_cond_wait(&ds->ready, &ds->lock);
     pthread_mutex_lock(&ds->lock);
-    el = NULL;
-    if (ds->read_curr >= ds->write_curr)
+    if (ds->length == 0)
         goto end;
     el = ds->elements[ds->read_curr];
     if (!should_remove)
         goto end;
     ds->read_curr++;
+    ds->length--;
     if (ds->read_curr == MAX_DS_LEN)
         ds->read_curr = 0;
 end:

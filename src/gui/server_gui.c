@@ -41,6 +41,7 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     GLuint texture;
     unsigned int vert_shad, frag_shad, shader_prog;
     int width = 0, height = 0;
+    int first_run = 1;
     struct DFrame *dframe = NULL, *new_dframe = NULL;
     float vertices[] = {
         // positions          // colors           // texture coords
@@ -100,9 +101,7 @@ static void draw(GLFWwindow *window, struct DStack *stack)
     {
         glfwPollEvents();
 
-        printf("popping\n");
         new_dframe = (struct DFrame *)dstack_pop(stack, 1);
-        printf("popped\n");
         if (new_dframe)
         {
             if (dframe)
@@ -125,7 +124,15 @@ static void draw(GLFWwindow *window, struct DStack *stack)
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
             glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 #endif
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
+            if (first_run)
+            {
+                first_run = 0;
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
+            }
+            else
+            {
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, dframe->data);
+            }
         }
 
         // Update only if new frame
