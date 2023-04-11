@@ -75,7 +75,4 @@
 # todo
 
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
-- building takes way too long, figure out why
-  - maybe install the libraries so they can be cached?
-  - could be the system_sdk thing, install that too?
-- krashes after a while, possibly memory related
+- switch to tcp for now, make it work

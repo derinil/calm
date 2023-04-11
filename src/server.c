@@ -22,7 +22,6 @@ void decompressed_frame_callback(struct DFrame *frame)
     printf("got decoded frame with length %lu\n", frame->data_length);
 #endif
     dstack_push(g_server->stack, frame);
-    printf("pushed decompressed frame %d\n", fc++);
 }
 
 void frame_callback(struct CFrame *frame)
@@ -103,7 +102,7 @@ int start_server()
     pthread_create(&(g_server->net_thread), NULL, server_net_thread, NULL);
     pthread_create(&(g_server->capture_thread), NULL, capture_thread, NULL);
 
-#if 1
+#if 0
     int err = handle_server_gui(g_server->stack);
     if (err)
         return err;

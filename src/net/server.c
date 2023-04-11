@@ -46,6 +46,9 @@ void set_disconnected_callback(struct NetServer *s, server_callback callback)
 
 int send_reliable(struct NetServer *s, uint8_t *data, size_t len)
 {
+#if 1
+    return 0;
+#endif
     int err = 1;
     ENetPacket *packet;
     if (!s->server->peerCount)
@@ -61,8 +64,6 @@ fail:
     enet_packet_destroy(packet);
     return err;
 }
-
-// #define ENET_DEBUG
 
 int listen_connections(ENetHost *server)
 {
@@ -81,7 +82,7 @@ int listen_connections(ENetHost *server)
                    event.peer->address.host,
                    event.peer->address.port);
             // TODO: we don't really need this when we only allow 1 peer
-            event.peer->data = "Client information";
+            // event.peer->data = "Client information";
             // TODO: race condition
             // s->client = event.peer;
             // if (s->connected_callback)
@@ -93,12 +94,12 @@ int listen_connections(ENetHost *server)
             break;
         case ENET_EVENT_TYPE_DISCONNECT:
             // s->disconnected_callback(&event);
-            event.peer->data = NULL;
+            // event.peer->data = NULL;
             break;
         default:
             break;
         }
-
+printf("fluashing\n");
         enet_host_flush(server);
     }
 
