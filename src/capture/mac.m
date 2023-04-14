@@ -46,6 +46,8 @@ void release_cframe(struct CFrame *frame) {
     [data release];
   }
   CFRelease(this->block_buffer);
+  free(frame->parameter_sets);
+  free(frame->parameter_sets_lengths);
   free(this);
 }
 
@@ -98,19 +100,10 @@ void compressed_frame_callback(void *output_callback_ref_con,
 
     frame->frame.parameter_sets =
         malloc(ps_len * sizeof(*(frame->frame.parameter_sets)));
-    if (!frame->frame.parameter_sets)
-      return;
-
     frame->frame.parameter_sets_lengths =
         malloc(ps_len * sizeof(*(frame->frame.parameter_sets_lengths)));
-    if (!frame->frame.parameter_sets_lengths)
-      return;
-
-    frame->frame.parameter_sets_count = ps_len;
-
     frame->datas = malloc(ps_len * sizeof(*(frame->datas)));
-    if (!frame->datas)
-      return;
+    frame->frame.parameter_sets_count = ps_len;
 
     // Write each parameter set to the elementary stream
     for (size_t i = 0; i < ps_len; i++) {
