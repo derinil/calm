@@ -39,4 +39,12 @@ int start_capture(struct Capturer *capturer);
 int stop_capture(struct Capturer *capturer);
 void release_cframe(struct CFrame *frame);
 
+struct SerializedBuffer {
+  uint8_t *buffer;
+  uint64_t length;
+};
+
+struct SerializedBuffer *serialize_cframe(struct CFrame *frame);
+void release_serbuf_cframe(struct SerializedBuffer *buffer);
+
 #endif

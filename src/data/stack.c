@@ -65,11 +65,11 @@ void *dstack_pop_block(struct DStack *ds) {
   if (ds->length == 0)
     goto end;
   element = &ds->elements[ds->read_curr];
-  if (!element->exists)
+  if (element->exists == 0)
     goto end;
   el = element->actual;
   element->read_count++;
-  if (element->remove_at <= element->read_count)
+  if (element->remove_at > element->read_count)
     goto end;
   ds->read_curr++;
   ds->length--;

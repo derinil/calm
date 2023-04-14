@@ -98,12 +98,12 @@ int start_server() {
   pthread_create(&(server->capture_thread), NULL, capture_thread,
                  (void *)&cap_ret);
 
-#if 1
+#if 0
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
 #else
-  run_dummy_gui(stack);
+  run_dummy_gui(server->decompressed_stack);
 #endif
 
   pthread_join(server->net_thread, NULL);
