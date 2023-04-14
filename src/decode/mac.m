@@ -32,14 +32,12 @@ struct MacDFrame {
 };
 
 void release_dframe(struct DFrame *frame) {
-  struct MacDFrame *this = (struct MacDFrame *)frame;
-#if 1
-  free(this->frame.data);
-#else
-  CVPixelBufferUnlockBaseAddress(this->imageBuffer, 0);
-  CVPixelBufferRelease(this->imageBuffer);
-#endif
-  free(this);
+  struct MacDFrame *mcf = (struct MacDFrame *)frame;
+  // printf("freeing data\n");
+  free(mcf->frame.data);
+  // printf("freed data\n");
+  free(mcf);
+  // printf("freed frame\n");
 }
 
 void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
@@ -62,13 +60,7 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
     return;
   }
 
-#if 0
-  printf("received decompressed frame\n");
-#endif
-
-#if 1
   CVPixelBufferRetain(imageBuffer);
-#endif
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
   void *baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
@@ -81,47 +73,15 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   frame->frame.width = width;
   frame->frame.height = height;
 
-#if 0
-  size_t len = dataSize;
-  uint8_t *buf = malloc(len * sizeof(*buf));
-  memcpy(buf, (uint8_t *)baseAddress, len);
-  CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-  CVPixelBufferRelease(imageBuffer);
-#elif 1
   size_t len = width * height * (bytesPerRow / width);
   uint8_t *buf = malloc(len * sizeof(*buf));
   memcpy(buf, (uint8_t *)baseAddress, len);
+
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
-  // TODO: this causes a segfault :(
   CVPixelBufferRelease(imageBuffer);
-#if 0
-  frame->imageBuffer = imageBuffer;
-  uint8_t *ba = (uint8_t *)baseAddress;
-  size_t doff = 0, boff = 0;
-  for (size_t line = 0; line < height; line++) {
-    memcpy(buf + doff, ba + boff, bytesPerRow);
-    doff += bytesPerRow;
-    boff += bytesPerRow;
-  }
-#endif
-#else
-  size_t len = dataSize;
-  uint8_t *buf = (uint8_t *)baseAddress;
-#endif
 
   frame->frame.data = buf;
   frame->frame.data_length = len;
-
-#if 0
-  FILE *f = fopen("test.ppm", "w+");
-  fprintf(f, "P3\n%lu %lu\n255\n", width, height);
-  for (size_t x = 0; x < len; x += 4) {
-    fprintf(f, "%u %u %u\n", buf[x + 2], buf[x + 1], buf[x]);
-  }
-  fflush(f);
-  fclose(f);
-  exit(0);
-#endif
 
   this->decoder.decompressed_frame_handler(&frame->frame);
 }

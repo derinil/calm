@@ -47,7 +47,7 @@ GLFWwindow *setup_window()
     return NULL;
 
   glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);
+  glfwSwapInterval(0);
 
   igCreateContext(NULL);
   ImGuiIO *io = igGetIO();

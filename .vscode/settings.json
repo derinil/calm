@@ -1,5 +1,9 @@
 {
     "clangd.fallbackFlags": [
-        "-I${workspaceFolder}/deps/libuv/vendor/libuv/include"
+        "-I${workspaceFolder}/deps/libuv/vendor/libuv/include",
+        "-I${workspaceFolder}/deps/glfw/upstream/glfw/include",
+        "-I${workspaceFolder}/deps/glad/include",
+        "-I${workspaceFolder}/deps/cimgui",
+        "-I${workspaceFolder}/deps/cimgui/generator/output"
     ]
 }

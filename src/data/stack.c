@@ -19,7 +19,7 @@ struct DStack *create_dstack(FreeElement freer) {
 
 void dstack_push(struct DStack *ds, void *element) {
   pthread_mutex_lock(&ds->lock);
-  if (ds->elements[ds->write_curr])
+  if (ds->elements[ds->write_curr] != NULL)
     ds->freer(ds->elements[ds->write_curr]);
   ds->elements[ds->write_curr] = element;
   ds->write_curr++;
@@ -29,9 +29,6 @@ void dstack_push(struct DStack *ds, void *element) {
   // pthread_cond_signal(&ds->ready);
   pthread_mutex_unlock(&ds->lock);
 }
-
-// TODO: look into a cond vars
-int dstack_ready(struct DStack *ds) { return ds->read_curr == ds->write_curr; }
 
 // pop waits until there is anything to pop
 void *dstack_pop(struct DStack *ds, int should_remove) {

@@ -1,5 +1,6 @@
 #include "capture.h"
 #include <AVFoundation/AVFoundation.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreMedia/CoreMedia.h>
 #include <CoreServices/CoreServices.h>
@@ -278,6 +279,7 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   CFTypeRef keys[] = {
       kCGDisplayStreamMinimumFrameTime,
       kCGDisplayStreamQueueDepth,
+      kCGDisplayStreamShowCursor,
   };
   CFTypeRef values[] = {
     // Supposedly the default value for kCGDisplayStreamMinimumFrameTime
@@ -285,6 +287,7 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
     // behaviour.
     @0,
     @5,
+    @true,
   };
 
   CFDictionaryRef opts =

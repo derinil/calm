@@ -12,15 +12,14 @@ typedef void (*FreeElement)(void *element);
 // Designed for 1 thread writing, 1 thread reading
 // Reading thread should be able to wait for an update
 // Having a mutex at this point will not be too much of a bottleneck
-struct DStack
-{
-  size_t write_curr;
-  size_t read_curr;
+struct DStack {
   size_t length;
-  void *elements[MAX_DS_LEN];
+  size_t read_curr;
+  size_t write_curr;
+  FreeElement freer;
   pthread_mutex_t lock;
   pthread_cond_t ready;
-  FreeElement freer;
+  void *elements[MAX_DS_LEN];
 };
 
 struct DStack *create_dstack(FreeElement freer);
@@ -28,6 +27,7 @@ void dstack_push(struct DStack *ds, void *element);
 // We can choose to not actually "pop" the element
 // from the stack, if we want to pop the same frame multiple times
 void *dstack_pop(struct DStack *ds, int should_remove);
+// TODO: look into condvars
 int dstack_ready(struct DStack *ds);
 
 #endif

@@ -1,6 +1,5 @@
 #include "server.h"
 #include "capture/capture.h"
-#include "data/stack.h"
 #include "decode/decode.h"
 #include "gui/server_gui.h"
 #include "net/server.h"
@@ -8,20 +7,16 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "data/stack.h"
+#include "gui/dummy_gui.h"
 
 struct Server *g_server;
 
 void decompressed_frame_callback(struct DFrame *frame) {
-#if 0
-    printf("got decoded frame with length %lu\n", frame->data_length);
-#endif
   dstack_push(g_server->stack, frame);
 }
 
 void frame_callback(struct CFrame *frame) {
-#if 0
-    printf("received compressed frame with length %lu\n", frame->frame_length);
-#endif
   decode_frame(g_server->decoder, frame);
   release_cframe(frame);
 }
@@ -37,9 +32,6 @@ void *capture_thread(void *args) {
 }
 
 void *server_net_thread(void *args) {
-#if 0
-    return NULL;
-#endif
   int err;
   err = net_start_server(g_server->net_server);
   if (err)
@@ -97,7 +89,7 @@ int start_server() {
     if (err)
         return err;
 #else
-  getchar();
+  run_dummy_gui(stack);
 #endif
 
   // What a pleasant block of code :)

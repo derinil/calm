@@ -106,17 +106,6 @@ static void draw(GLFWwindow *window, struct DStack *stack)
         {
             width = dframe->width;
             height = dframe->height;
-#if 0
-            FILE *f = fopen("test.ppm", "w+");
-            fprintf(f, "P3\n%lu %lu\n255\n", dframe->width, dframe->height);
-            for (size_t x = 0; x < dframe->data_length; x += 4)
-            {
-                fprintf(f, "%u %u %u\n", dframe->data[x + 2], dframe->data[x + 1], dframe->data[x]);
-            }
-            fflush(f);
-            fclose(f);
-            exit(0);
-#endif
             glBindTexture(GL_TEXTURE_2D, texture);
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
             glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);

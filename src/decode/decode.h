@@ -10,12 +10,12 @@
 #include <unistd.h>
 
 struct DFrame {
-  // 32 bit bgra
-  uint8_t *data;
-  size_t data_length;
-  size_t bytes_per_row;
   size_t width;
   size_t height;
+  size_t data_length;
+  size_t bytes_per_row;
+  // 32 bit bgra
+  uint8_t *data;
 };
 
 typedef void (*DecompressedFrameHandler)(struct DFrame *frame);
@@ -25,8 +25,6 @@ struct Decoder {
   size_t height;
   // Width of the display in pixels.
   size_t width;
-  // Latest keyframe we have
-  struct CFrame *curr_keyframe;
   // Initialized with keyframe
   int is_initialized;
   // Decoded frame handler
