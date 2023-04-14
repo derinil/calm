@@ -47,6 +47,7 @@ void *dstack_pop(struct DStack *ds, int should_remove) {
   ds->length--;
   if (ds->read_curr == MAX_DS_LEN)
     ds->read_curr = 0;
+  ds->elements[ds->read_curr] = NULL;
 end:
   pthread_mutex_unlock(&ds->lock);
   return el;

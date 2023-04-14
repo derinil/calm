@@ -92,7 +92,7 @@ int start_server() {
   pthread_create(&(g_server->net_thread), NULL, server_net_thread, NULL);
   pthread_create(&(g_server->capture_thread), NULL, capture_thread, NULL);
 
-#if 0
+#if 1
     int err = handle_server_gui(g_server->stack);
     if (err)
         return err;
