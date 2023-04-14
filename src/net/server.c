@@ -1,4 +1,6 @@
 #include "server.h"
+#include "../data/stack.h"
+#include "../capture/capture.h"
 #include "uv.h"
 #include <netinet/in.h>
 #include <stdio.h>
@@ -7,9 +9,9 @@
 
 void on_new_connection(uv_stream_t *server, int status);
 
-uv_loop_t *loop;
+static struct NetServer *g_net_server;
 
-struct NetServer *net_setup_server() {
+struct NetServer *net_setup_server(struct DStack *stack) {
   int err;
   struct NetServer *s;
   struct sockaddr_in addr;
@@ -17,13 +19,13 @@ struct NetServer *net_setup_server() {
   if (!s)
     return NULL;
   memset(s, 0, sizeof(*s));
-  loop = uv_default_loop();
-  if (!loop)
+  s->loop = uv_default_loop();
+  if (!s->loop)
     return NULL;
-  s->loop = loop;
   s->tcp_server = malloc(sizeof(*s->tcp_server));
   if (!s->tcp_server)
     return NULL;
+  s->stack = stack;
   uv_tcp_init(s->loop, s->tcp_server);
   uv_ip4_addr("0.0.0.0", CALM_PORT, &addr);
   err = uv_tcp_bind(s->tcp_server, (const struct sockaddr *)&addr, 0);
@@ -34,7 +36,7 @@ struct NetServer *net_setup_server() {
 
 int net_destroy_server(struct NetServer *s) {
   int err;
-  err = uv_loop_close(loop);
+  err = uv_loop_close(s->loop);
   free(s->tcp_server);
   free(s);
   return err;
@@ -45,7 +47,7 @@ int net_start_server(struct NetServer *server) {
   err = uv_listen((uv_stream_t *)server->tcp_server, 128, on_new_connection);
   if (err)
     return err;
-  err = uv_run(loop, UV_RUN_DEFAULT);
+  err = uv_run(server->loop, UV_RUN_DEFAULT);
   return err;
 }
 
@@ -79,16 +81,29 @@ void echo_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
 }
 
 void on_new_connection(uv_stream_t *server, int status) {
+  int err;
+  struct CFrame *cframe;
+
   if (status < 0) {
     fprintf(stderr, "New connection error %s\n", uv_strerror(status));
     return;
   }
 
   uv_tcp_t *client = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
-  uv_tcp_init(loop, client);
-  if (uv_accept(server, (uv_stream_t *)client) == 0) {
-    uv_read_start((uv_stream_t *)client, alloc_buffer, echo_read);
-  } else {
+  uv_tcp_init(g_net_server->loop, client);
+  err = uv_accept(server, (uv_stream_t *)client);
+  if (err) {
     uv_close((uv_handle_t *)client, NULL);
+    return;
+  }
+  uv_read_start((uv_stream_t *)client, alloc_buffer, echo_read);
+  // TODO: not sure if blocking a callback is ok
+  while (1) {
+    cframe = (struct CFrame *)dstack_pop_block(g_net_server->stack);
+    // This should never happen :) clueless
+    if (!cframe)
+      continue;
+      // TODO: serialize and write
+    release_cframe(cframe);
   }
 }

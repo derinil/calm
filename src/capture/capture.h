@@ -1,26 +1,24 @@
 #ifndef CAPTURE_H_
 #define CAPTURE_H_
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // We conditionally compile the implementations based on the platform.
 
-struct CFrame
-{
+struct CFrame {
   int is_keyframe;
   uint8_t **parameter_sets;
-  size_t parameter_sets_count;
-  size_t *parameter_sets_lengths;
+  uint64_t parameter_sets_count;
+  uint64_t *parameter_sets_lengths;
   uint8_t *frame;
-  size_t frame_length;
+  uint64_t frame_length;
 };
 
 // TODO: use uint8_t over char
 typedef void (*CompressedFrameHandler)(struct CFrame *frame);
 
-struct Capturer
-{
+struct Capturer {
   // Height of the display in pixels.
   size_t height;
   // Width of the display in pixels.

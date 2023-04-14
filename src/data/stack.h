@@ -43,4 +43,6 @@ void *dstack_pop_block(struct DStack *ds);
 // TODO: look into condvars
 int dstack_ready(struct DStack *ds);
 
+// TODO: destroy_dstack
+
 #endif

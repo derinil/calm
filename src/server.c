@@ -20,12 +20,12 @@ struct ThreadArgs {
 void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
 
 void decompressed_frame_callback(struct DFrame *frame) {
-  dstack_push(g_server->stack, frame, 2);
+  dstack_push(g_server->decompressed_stack, frame, 1);
 }
 
 void frame_callback(struct CFrame *frame) {
   decode_frame(g_server->decoder, frame);
-  release_cframe(frame);
+  dstack_push(g_server->compressed_stack, frame, 1);
 }
 
 void *capture_thread(void *vargs) {
@@ -53,11 +53,12 @@ exit:
 
 int start_server() {
   int net_ret = 0, cap_ret = 0, err = 0;
-  struct DStack *stack;
   struct Server *server;
   struct Decoder *decoder;
   struct Capturer *capturer;
   struct NetServer *net_server;
+  struct DStack *compressed_stack;
+  struct DStack *decompressed_stack;
 
   server = malloc(sizeof(*server));
   if (!server)
@@ -68,22 +69,27 @@ int start_server() {
   if (!capturer)
     return 2;
 
-  net_server = net_setup_server();
-  if (!net_server)
+  compressed_stack = create_dstack(NULL);
+  if (!compressed_stack)
     return 3;
 
-  stack = create_dstack(void_dframe_releaser);
-  if (!stack)
+  decompressed_stack = create_dstack(void_dframe_releaser);
+  if (!decompressed_stack)
     return 4;
+
+  net_server = net_setup_server(compressed_stack);
+  if (!net_server)
+    return 5;
 
   decoder = setup_decoder(decompressed_frame_callback);
   if (!decoder)
-    return 5;
+    return 6;
 
-  server->stack = stack;
   server->decoder = decoder;
   server->capturer = capturer;
   server->net_server = net_server;
+  server->compressed_stack = compressed_stack;
+  server->decompressed_stack = decompressed_stack;
 
   g_server = server;
 
@@ -93,7 +99,7 @@ int start_server() {
                  (void *)&cap_ret);
 
 #if 1
-  err = handle_server_gui(server->stack);
+  err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
 #else

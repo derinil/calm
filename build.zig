@@ -33,6 +33,10 @@ var sourceFolders = [_][]const u8{
     basePath("/deps/glad/src"),
 };
 
+var sourceFiles = [_][]const u8{
+    basePath("/src/capture/capture.c"),
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -90,6 +94,10 @@ pub fn build(b: *std.Build) void {
             exe.addCSourceFile(s, &.{});
         }
     }
+
+    for (sourceFiles) |s| {
+            exe.addCSourceFile(s, &.{});
+        }
 
     b.installArtifact(exe);
 

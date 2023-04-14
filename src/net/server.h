@@ -4,15 +4,17 @@
 #include "uv.h"
 #include <stddef.h>
 #include <stdint.h>
+#include "../data/stack.h"
 
 #define CALM_PORT 58912
 
 struct NetServer {
   uv_loop_t *loop;
   uv_tcp_t *tcp_server;
+  struct DStack *stack;
 };
 
-struct NetServer *net_setup_server();
+struct NetServer *net_setup_server(struct DStack *stack);
 int net_start_server(struct NetServer *server);
 int send_reliable(struct NetServer *s, uint8_t *data, size_t len);
 int net_destroy_server(struct NetServer *s);
