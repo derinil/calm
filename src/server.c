@@ -1,16 +1,23 @@
 #include "server.h"
 #include "capture/capture.h"
+#include "data/stack.h"
 #include "decode/decode.h"
+#include "gui/dummy_gui.h"
 #include "gui/server_gui.h"
 #include "net/server.h"
 #include "uv.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "data/stack.h"
-#include "gui/dummy_gui.h"
 
-struct Server *g_server;
+static struct Server *g_server;
+
+struct ThreadArgs {
+  void *args;
+  int *ret;
+};
+
+void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
 
 void decompressed_frame_callback(struct DFrame *frame) {
   dstack_push(g_server->stack, frame);
@@ -21,32 +28,31 @@ void frame_callback(struct CFrame *frame) {
   release_cframe(frame);
 }
 
-void *capture_thread(void *args) {
+void *capture_thread(void *vargs) {
   int err;
-  if ((err = start_capture(g_server->capturer)))
-    printf("failed to start capture: %d\n", err);
+  struct ThreadArgs *args = (struct ThreadArgs *)vargs;
+  err = start_capture(g_server->capturer);
+  if (err)
+    goto exit;
   getchar();
-  if ((err = stop_capture(g_server->capturer)))
-    printf("failed to stop capture: %d\n", err);
+exit:
+  *args->ret = err;
   return NULL;
 }
 
-void *server_net_thread(void *args) {
+void *server_net_thread(void *vargs) {
   int err;
+  struct ThreadArgs *args = (struct ThreadArgs *)vargs;
   err = net_start_server(g_server->net_server);
   if (err)
     goto exit;
-  err = net_destroy_server(g_server->net_server);
-  if (err)
-    goto exit;
 exit:
-  printf("net_thread finished with code %d\n", err);
+  *args->ret = err;
   return NULL;
 }
 
-void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
-
 int start_server() {
+  int net_ret = 0, cap_ret = 0, err = 0;
   struct DStack *stack;
   struct Server *server;
   struct Decoder *decoder;
@@ -81,24 +87,33 @@ int start_server() {
 
   g_server = server;
 
-  pthread_create(&(g_server->net_thread), NULL, server_net_thread, NULL);
-  pthread_create(&(g_server->capture_thread), NULL, capture_thread, NULL);
+  pthread_create(&(server->net_thread), NULL, server_net_thread,
+                 (void *)&net_ret);
+  pthread_create(&(server->capture_thread), NULL, capture_thread,
+                 (void *)&cap_ret);
 
 #if 1
-    int err = handle_server_gui(g_server->stack);
-    if (err)
-        return err;
+  err = handle_server_gui(server->stack);
+  if (err)
+    return err;
 #else
   run_dummy_gui(stack);
 #endif
 
-  // What a pleasant block of code :)
-  void *thread_err;
-  pthread_join(g_server->net_thread, &thread_err);
-  if ((int *)(thread_err) && *(int *)(thread_err))
-    return *(int *)(thread_err);
-  pthread_join(g_server->capture_thread, &thread_err);
-  if ((int *)(thread_err) && *(int *)(thread_err))
-    return *(int *)(thread_err);
+  pthread_join(server->net_thread, NULL);
+  if (net_ret)
+    printf("net thread failed with code %d\n", net_ret);
+  pthread_join(server->capture_thread, NULL);
+  if (cap_ret)
+    printf("capture thread failed with code %d\n", cap_ret);
+
+  err = net_destroy_server(server->net_server);
+  if (err)
+    return err;
+
+  err = stop_capture(server->capturer);
+  if (err)
+    return err;
+
   return 0;
 }

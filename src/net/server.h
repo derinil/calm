@@ -5,9 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// TODO: we can increase this for the server later on to allow multiple clients
-#define NUM_PEERS 1
-#define NUM_CHANNELS 2
 #define CALM_PORT 58912
 
 struct NetServer {

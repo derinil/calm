@@ -1,50 +1,54 @@
-#include "gui/client_gui.h"
 #include "client.h"
+#include "gui/client_gui.h"
+#include "net/client.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "net/client.h"
 #include <strings.h>
 
-void *net_thread(void *args)
-{
-    int err;
-    struct NetClient *c;
+struct ThreadArgs {
+  void *args;
+  int *ret;
+};
 
-    c = setup_client();
-    if (!c)
-    {
-        err = 1;
-        goto exit;
-    }
-    err = connect_client(c, "127.0.0.1");
-    if (err)
-        goto exit;
-    getchar();
-    err = destroy_client(c);
-    if (err)
-        goto exit;
-exit:
-    printf("net_thread finished with code %d\n", err);
-    return NULL;
+void *net_thread(void *vargs) {
+  int err;
+  struct ThreadArgs *args = (struct ThreadArgs *)vargs;
+  err = connect_client((struct NetClient *)(args->args), "127.0.0.1");
+  *args->ret = err;
+  return NULL;
 }
 
-int start_client()
-{
-    struct Client *client = malloc(sizeof(*client));
-    if (!client)
-        return 1;
-    memset(client, 0, sizeof(*client));
+int start_client() {
+  int net_ret = 0;
+  struct Client *client;
+  struct NetClient *net_client;
 
-    pthread_create(&client->net_thread, NULL, net_thread, NULL);
+  client = malloc(sizeof(*client));
+  if (!client)
+    return 1;
+  memset(client, 0, sizeof(*client));
 
-    int err = handle_client_gui(NULL);
-    if (err)
-        return err;
+  net_client = setup_client();
+  if (!net_client)
+    return 2;
 
-    void *net_err;
-    pthread_join(client->net_thread, &net_err);
-    if ((int *)(net_err) && *(int *)(net_err))
-        return *(int *)(net_err);
-    return 0;
+  client->net_client = net_client;
+
+  struct ThreadArgs net_args =
+      (struct ThreadArgs){.args = net_client, .ret = &net_ret};
+
+  pthread_create(&client->net_thread, NULL, net_thread, (void *)&net_args);
+
+  int err = handle_client_gui(NULL);
+  if (err)
+    return err;
+
+  pthread_join(client->net_thread, NULL);
+
+  err = destroy_client(client->net_client);
+  if (err)
+    return err;
+
+  return 0;
 }

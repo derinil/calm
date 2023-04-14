@@ -32,7 +32,13 @@ struct NetServer *net_setup_server() {
   return s;
 }
 
-int net_destroy_server(struct NetServer *s) { return uv_loop_close(loop); }
+int net_destroy_server(struct NetServer *s) {
+  int err;
+  err = uv_loop_close(loop);
+  free(s->tcp_server);
+  free(s);
+  return err;
+}
 
 int net_start_server(struct NetServer *server) {
   int err;
