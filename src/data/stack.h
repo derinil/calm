@@ -1,10 +1,20 @@
 #ifndef DATA_STACK_H_
 #define DATA_STACK_H_
 
+#include "uv.h"
 #include <pthread.h>
 #include <stddef.h>
 
 #define MAX_DS_LEN 2048
+
+// Internal representation of a element,
+// we still accept and return (void *)
+struct DSElement {
+  void *actual;
+  int exists;
+  int read_count;
+  int remove_at;
+};
 
 typedef void (*FreeElement)(void *element);
 
@@ -17,16 +27,19 @@ struct DStack {
   size_t read_curr;
   size_t write_curr;
   FreeElement freer;
-  pthread_mutex_t lock;
+  uv_mutex_t mutex;
+  uv_cond_t cond;
   pthread_cond_t ready;
-  void *elements[MAX_DS_LEN];
+  struct DSElement elements[MAX_DS_LEN];
 };
 
 struct DStack *create_dstack(FreeElement freer);
-void dstack_push(struct DStack *ds, void *element);
-// We can choose to not actually "pop" the element
-// from the stack, if we want to pop the same frame multiple times
-void *dstack_pop(struct DStack *ds, int should_remove);
+// remove_at should be <= 1 to be removed off the stack at first read
+void dstack_push(struct DStack *ds, void *element, int remove_at);
+// Returns NULL if no element is found
+void *dstack_pop_nonblock(struct DStack *ds);
+// Blocks using a condvar
+void *dstack_pop_block(struct DStack *ds);
 // TODO: look into condvars
 int dstack_ready(struct DStack *ds);
 

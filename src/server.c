@@ -20,7 +20,7 @@ struct ThreadArgs {
 void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
 
 void decompressed_frame_callback(struct DFrame *frame) {
-  dstack_push(g_server->stack, frame);
+  dstack_push(g_server->stack, frame, 2);
 }
 
 void frame_callback(struct CFrame *frame) {

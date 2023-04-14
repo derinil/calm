@@ -1,6 +1,6 @@
-#include "window.h"
-#include "../data/stack.h"
 #include "../capture/capture.h"
+#include "../data/stack.h"
+#include "window.h"
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
 #define CIMGUI_USE_GLFW
@@ -9,82 +9,77 @@
 #define GLFW_INCLUDE_NONE
 #include "GLFW/glfw3.h"
 #include "glad/glad.h"
+#include "video.h"
 
-static void draw(GLFWwindow *window, struct DStack *stack)
-{
-    static ImVec4 clearColor;
-    clearColor.x = 0.45f;
-    clearColor.y = 0.55f;
-    clearColor.z = 0.60f;
-    clearColor.w = 1.00f;
+static void draw(GLFWwindow *window, struct DStack *stack) {
+  static ImVec4 clearColor;
+  clearColor.x = 0.45f;
+  clearColor.y = 0.55f;
+  clearColor.z = 0.60f;
+  clearColor.w = 1.00f;
 
-    while (!glfwWindowShouldClose(window))
+  while (!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
+
+    draw_video_frame(stack);
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    igNewFrame();
     {
-        glfwPollEvents();
+      igBegin("Main", NULL,
+              ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings |
+                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
+                  ImGuiWindowFlags_NoResize);
+      igSetWindowPos_Vec2((ImVec2){}, ImGuiCond_Always);
+      ImGuiViewport *viewport = igGetMainViewport();
+      ImVec2 size = viewport->Size;
+      size.x /= 4;
+      igSetWindowSize_Vec2(size, ImGuiCond_Always);
 
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        igNewFrame();
+      static float f = 0.0f;
+      static int counter = 0;
 
-        {
-            igBegin("Main", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
-            igSetWindowPos_Vec2((ImVec2){}, ImGuiCond_Always);
-            ImGuiViewport *viewport = igGetMainViewport();
-            ImVec2 size = viewport->Size;
-            size.x /= 4;
-            igSetWindowSize_Vec2(size, ImGuiCond_Always);
+      igText("This is some useful text");
 
-            static float f = 0.0f;
-            static int counter = 0;
+      igSliderFloat("Float", &f, 0.0f, 1.0f, "%.3f", 0);
+      igColorEdit3("clear color", (float *)&clearColor, 0);
 
-            igText("This is some useful text");
+      ImVec2 buttonSize;
+      buttonSize.x = 0;
+      buttonSize.y = 0;
+      if (igButton("Button", buttonSize))
+        counter++;
+      igSameLine(0.0f, -1.0f);
+      igText("counter = %d", counter);
 
-            igSliderFloat("Float", &f, 0.0f, 1.0f, "%.3f", 0);
-            igColorEdit3("clear color", (float *)&clearColor, 0);
-
-            ImVec2 buttonSize;
-            buttonSize.x = 0;
-            buttonSize.y = 0;
-            if (igButton("Button", buttonSize))
-                counter++;
-            igSameLine(0.0f, -1.0f);
-            igText("counter = %d", counter);
-
-            igText("Application average %.3f ms/frame (%.1f FPS)",
-                   1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
-            igEnd();
-        }
-
-        // if (dstack_ready(stack))
-        // {
-        //     struct CFrame *frame = (struct CFrame *)dstack_pop(stack);
-        // }
-
-        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-        glClear(GL_COLOR_BUFFER_BIT);
-        igRender();
-        ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
-        glfwSwapBuffers(window);
+      igText("Application average %.3f ms/frame (%.1f FPS)",
+             1000.0f / igGetIO()->Framerate, igGetIO()->Framerate);
+      igEnd();
     }
+    igRender();
+    ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+    glfwSwapBuffers(window);
+  }
 }
 
-static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
-{
-    glViewport(0, 0, width, height);
+static void framebuffer_size_callback(GLFWwindow *window, int width,
+                                      int height) {
+  glViewport(0, 0, width, height);
 }
 
-int handle_client_gui(struct DStack *stack)
-{
+int handle_client_gui(struct DStack *stack) {
 #if 1
-    return 0;
+  return 0;
 #endif
-    GLFWwindow *window;
-    window = setup_window();
-    if (!window)
-        return 1;
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    // NOTE: can use glfwWaitEvents(); to update gui only on input event
-    draw(window, stack);
-    destroy_window(window);
-    return 0;
+  GLFWwindow *window;
+  window = setup_window();
+  if (!window)
+    return 1;
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  setup_video_renderer();
+  draw(window, stack);
+  destroy_window(window);
+  destroy_video_renderer();
+  return 0;
 }

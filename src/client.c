@@ -1,4 +1,5 @@
 #include "client.h"
+#include "data/stack.h"
 #include "gui/client_gui.h"
 #include "net/client.h"
 #include <pthread.h>
@@ -22,6 +23,7 @@ void *net_thread(void *vargs) {
 int start_client() {
   int net_ret = 0;
   struct Client *client;
+  struct DStack *stack;
   struct NetClient *net_client;
 
   client = malloc(sizeof(*client));
@@ -29,9 +31,13 @@ int start_client() {
     return 1;
   memset(client, 0, sizeof(*client));
 
-  net_client = setup_client();
-  if (!net_client)
+  stack = create_dstack(NULL);
+  if (!stack)
     return 2;
+
+  net_client = setup_client(stack);
+  if (!net_client)
+    return 3;
 
   client->net_client = net_client;
 
@@ -40,7 +46,7 @@ int start_client() {
 
   pthread_create(&client->net_thread, NULL, net_thread, (void *)&net_args);
 
-  int err = handle_client_gui(NULL);
+  int err = handle_client_gui(stack);
   if (err)
     return err;
 
