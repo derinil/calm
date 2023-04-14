@@ -19,6 +19,7 @@ struct NetServer *net_setup_server(struct DStack *stack) {
   if (!s)
     return NULL;
   memset(s, 0, sizeof(*s));
+  g_net_server = s;
   s->loop = uv_default_loop();
   if (!s->loop)
     return NULL;
@@ -98,7 +99,9 @@ void on_new_connection(uv_stream_t *server, int status) {
   }
 
   uv_tcp_t *client = (uv_tcp_t *)malloc(sizeof(uv_tcp_t));
+  printf("client\n");
   uv_tcp_init(g_net_server->loop, client);
+  printf("init\n");
   err = uv_accept(server, (uv_stream_t *)client);
   printf("accepted\n");
   if (err) {

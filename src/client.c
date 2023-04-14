@@ -9,14 +9,14 @@
 
 struct ThreadArgs {
   void *args;
-  int *ret;
+  int ret;
 };
 
 void *net_thread(void *vargs) {
   int err;
   struct ThreadArgs *args = (struct ThreadArgs *)vargs;
   err = connect_client((struct NetClient *)(args->args), "127.0.0.1");
-  *args->ret = err;
+  args->ret = err;
   return NULL;
 }
 
@@ -42,7 +42,7 @@ int start_client() {
   client->net_client = net_client;
 
   struct ThreadArgs net_args =
-      (struct ThreadArgs){.args = net_client, .ret = &net_ret};
+      (struct ThreadArgs){.args = net_client, .ret = 0};
 
   pthread_create(&client->net_thread, NULL, net_thread, (void *)&net_args);
 
@@ -51,6 +51,9 @@ int start_client() {
     return err;
 
   pthread_join(client->net_thread, NULL);
+
+  if (net_args.ret != 0)
+    printf("net thread failed with code %d\n", net_args.ret);
 
   err = destroy_client(client->net_client);
   if (err)

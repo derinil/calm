@@ -14,7 +14,7 @@ static struct Server *g_server;
 
 struct ThreadArgs {
   void *args;
-  int *ret;
+  int ret;
 };
 
 void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
@@ -36,7 +36,7 @@ void *capture_thread(void *vargs) {
     goto exit;
   getchar();
 exit:
-  *args->ret = err;
+  args->ret = err;
   return NULL;
 }
 
@@ -47,18 +47,19 @@ void *server_net_thread(void *vargs) {
   if (err)
     goto exit;
 exit:
-  *args->ret = err;
+  args->ret = err;
   return NULL;
 }
 
 int start_server() {
-  int net_ret = 0, cap_ret = 0, err = 0;
+  int err;
   struct Server *server;
   struct Decoder *decoder;
   struct Capturer *capturer;
   struct NetServer *net_server;
   struct DStack *compressed_stack;
   struct DStack *decompressed_stack;
+  struct ThreadArgs net_ret = {0}, cap_ret = {0};
 
   server = malloc(sizeof(*server));
   if (!server)
@@ -106,16 +107,22 @@ int start_server() {
   run_dummy_gui(server->decompressed_stack);
 #endif
 
+  printf("3\n");
+
   pthread_join(server->net_thread, NULL);
-  if (net_ret)
-    printf("net thread failed with code %d\n", net_ret);
+  if (net_ret.ret)
+    printf("net thread failed with code %d\n", net_ret.ret);
   pthread_join(server->capture_thread, NULL);
-  if (cap_ret)
-    printf("capture thread failed with code %d\n", cap_ret);
+  if (cap_ret.ret)
+    printf("capture thread failed with code %d\n", cap_ret.ret);
+
+  printf("4\n");
 
   err = net_destroy_server(server->net_server);
   if (err)
     return err;
+
+  printf("5\n");
 
   err = stop_capture(server->capturer);
   if (err)
