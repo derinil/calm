@@ -6,6 +6,8 @@
 
 #define MAX_DS_LEN 2048
 
+typedef void (*FreeElement)(void *element);
+
 // Stack
 // Designed for 1 thread writing, 1 thread reading
 // Reading thread should be able to wait for an update
@@ -18,9 +20,10 @@ struct DStack
   void *elements[MAX_DS_LEN];
   pthread_mutex_t lock;
   pthread_cond_t ready;
+  FreeElement freer;
 };
 
-struct DStack *create_dstack();
+struct DStack *create_dstack(FreeElement freer);
 void dstack_push(struct DStack *ds, void *element);
 // We can choose to not actually "pop" the element
 // from the stack, if we want to pop the same frame multiple times

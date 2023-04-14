@@ -11,11 +11,6 @@
 
 struct Server *g_server;
 
-volatile int fc = 0;
-// pushed decompressed frame 5850
-// pushed decompressed frame 5855
-// pushed decompressed frame 5857
-
 void decompressed_frame_callback(struct DFrame *frame) {
 #if 0
     printf("got decoded frame with length %lu\n", frame->data_length);
@@ -24,8 +19,6 @@ void decompressed_frame_callback(struct DFrame *frame) {
 }
 
 void frame_callback(struct CFrame *frame) {
-  if (!frame)
-    printf("null frame!!\n");
 #if 0
     printf("received compressed frame with length %lu\n", frame->frame_length);
 #endif
@@ -59,6 +52,8 @@ exit:
   return NULL;
 }
 
+void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
+
 int start_server() {
   struct DStack *stack;
   struct Server *server;
@@ -79,7 +74,7 @@ int start_server() {
   if (!net_server)
     return 3;
 
-  stack = create_dstack();
+  stack = create_dstack(void_dframe_releaser);
   if (!stack)
     return 4;
 

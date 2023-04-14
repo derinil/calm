@@ -76,3 +76,7 @@
 
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
 - switch to tcp for now, make it work
+
+# vscode extensions
+- clangd
+- zls
