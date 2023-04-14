@@ -1,28 +1,5 @@
 {
-    "files.associations": {
-        "*.sql": "sql",
-        "zig": "Zig",
-        "*.glsl": "glsl",
-        "*.js": "javascript",
-        "glfw3.h": "c",
-        "stddef.h": "c",
-        "cimgui.h": "c",
-        "glad.h": "c",
-        "stdint.h": "c",
-        "cimgui_impl.h": "c",
-        "stdio.h": "c",
-        "chrono": "c",
-        "gui.h": "c",
-        "window.h": "c",
-        "receiver.h": "c",
-        "enet.h": "c",
-        "client.h": "c",
-        "stdlib.h": "c",
-        "queue": "c",
-        "stack": "c",
-        "capture.h": "c",
-        "server.h": "c",
-        "any": "c",
-        "filesystem": "c"
-    }
+    "clangd.fallbackFlags": [
+        "-I${workspaceFolder}/deps/libuv/vendor/libuv/include"
+    ]
 }

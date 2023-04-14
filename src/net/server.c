@@ -1,107 +1,85 @@
 #include "server.h"
-#include "enet/enet.h"
-#include <stdlib.h>
+#include "uv.h"
+#include <netinet/in.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
 
-struct NetServer *setup_server()
-{
-    int err;
-    ENetHost *server;
-    struct NetServer *s;
-    ENetAddress address;
-    err = enet_initialize();
-    if (err)
-        return NULL;
-    s = malloc(sizeof(*s));
-    if (!s)
-        return NULL;
-    memset(s, 0, sizeof(*s));
-    address.host = ENET_HOST_ANY;
-    address.port = CALM_PORT;
-    server = enet_host_create(&address, NUM_PEERS, NUM_CHANNELS, 0, 0);
-    if (!server)
-        return NULL;
-    // TODO: consider enet_host_compress_with_range_coder
-    s->server = server;
-    return s;
+void on_new_connection(uv_stream_t *server, int status);
+
+struct NetServer *net_setup_server() {
+  int err;
+  struct NetServer *s;
+  struct sockaddr_in addr;
+  s = malloc(sizeof(*s));
+  if (!s)
+    return NULL;
+  memset(s, 0, sizeof(*s));
+  s->loop = uv_default_loop();
+  if (!s->loop)
+    return NULL;
+  s->tcp_server = malloc(sizeof(*s->tcp_server));
+  if (!s->tcp_server)
+    return NULL;
+  uv_tcp_init(s->loop, s->tcp_server);
+  uv_ip4_addr("0.0.0.0", CALM_PORT, &addr);
+  err = uv_tcp_bind(s->tcp_server, (const struct sockaddr *)&addr, 0);
+  if (err)
+    return NULL;
+  return s;
 }
 
-int destroy_server(struct NetServer *s)
-{
-    enet_host_destroy(s->server);
-    enet_deinitialize();
-    return 0;
-}
+int net_destroy_server(struct NetServer *s) { return uv_loop_close(s->loop); }
 
-void set_connected_callback(struct NetServer *s, server_callback callback)
-{
-    s->connected_callback = callback;
-}
-
-void set_disconnected_callback(struct NetServer *s, server_callback callback)
-{
-    s->disconnected_callback = callback;
-}
-
-int send_reliable(struct NetServer *s, uint8_t *data, size_t len)
-{
-#if 1
-    return 0;
-#endif
-    int err = 1;
-    ENetPacket *packet;
-    if (!s->server->peerCount)
-        return 0;
-    packet = enet_packet_create(data, len, ENET_PACKET_FLAG_RELIABLE | ENET_PACKET_FLAG_NO_ALLOCATE);
-    if (!packet)
-        goto fail;
-    err = enet_peer_send(s->server->peers, 0, packet);
-    if (err)
-        goto fail;
-    return 0;
-fail:
-    enet_packet_destroy(packet);
+int net_start_server(struct NetServer *server) {
+  int err;
+  err = uv_run(server->loop, UV_RUN_DEFAULT);
+  if (err)
     return err;
+  err = uv_listen((uv_stream_t *)server->tcp_server, 128, on_new_connection);
+  return err;
 }
 
-int listen_connections(ENetHost *server)
-{
-    ENetEvent event;
+void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+    buf->base = (char*)malloc(suggested_size);
+    buf->len = suggested_size;
+}
 
-    // TODO: leaving this at 1 second for now, might want to lower the interval
-    while (enet_host_service(server, &event, 1000) >= 0)
-    {
-        // printf("lol %d\n", event.type);
-        printf("lol\n");
-        switch (event.type)
-        {
-        case ENET_EVENT_TYPE_CONNECT:
-            printf("yo\n");
-            printf("A new client connected from %x:%u.\n",
-                   event.peer->address.host,
-                   event.peer->address.port);
-            // TODO: we don't really need this when we only allow 1 peer
-            // event.peer->data = "Client information";
-            // TODO: race condition
-            // s->client = event.peer;
-            // if (s->connected_callback)
-            //     s->connected_callback(&event);
-            break;
-        case ENET_EVENT_TYPE_RECEIVE:
-            printf("packet received\n");
-            enet_packet_destroy(event.packet);
-            break;
-        case ENET_EVENT_TYPE_DISCONNECT:
-            // s->disconnected_callback(&event);
-            // event.peer->data = NULL;
-            break;
-        default:
-            break;
+void echo_write(uv_write_t *req, int status) {
+    if (status) {
+        fprintf(stderr, "Write error %s\n", uv_strerror(status));
+    }
+    free(req);
+}
+
+void echo_read(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
+    if (nread < 0) {
+        if (nread != UV_EOF) {
+            fprintf(stderr, "Read error %s\n", uv_err_name(nread));
+            uv_close((uv_handle_t*) client, NULL);
         }
-printf("fluashing\n");
-        enet_host_flush(server);
+    } else if (nread > 0) {
+        uv_write_t *req = (uv_write_t *) malloc(sizeof(uv_write_t));
+        uv_buf_t wrbuf = uv_buf_init(buf->base, nread);
+        uv_write(req, client, &wrbuf, 1, echo_write);
     }
 
-    return 0;
+    if (buf->base) {
+        free(buf->base);
+    }
+}
+
+void on_new_connection(uv_stream_t *server, int status) {
+    if (status < 0) {
+        fprintf(stderr, "New connection error %s\n", uv_strerror(status));
+        return;
+    }
+
+    uv_tcp_t *client = (uv_tcp_t*)malloc(sizeof(uv_tcp_t));
+    uv_tcp_init(server->loop, client);
+    if (uv_accept(server, (uv_stream_t*) client) == 0) {
+        uv_read_start((uv_stream_t*)client, alloc_buffer, echo_read);
+    } else {
+        uv_close((uv_handle_t*) client, NULL);
+    }
 }
