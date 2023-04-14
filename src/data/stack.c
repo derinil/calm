@@ -20,7 +20,7 @@ struct DStack *create_dstack(FreeElement freer) {
 
 void dstack_push(struct DStack *ds, void *element, int remove_at) {
   uv_mutex_lock(&ds->mutex);
-  if (ds->elements[ds->write_curr].exists && ds->freer != NULL) {
+  if (ds->elements[ds->write_curr].exists != 0 && ds->freer != NULL) {
     ds->freer(ds->elements[ds->write_curr].actual);
     ds->elements[ds->write_curr] = (struct DSElement){0};
   }
