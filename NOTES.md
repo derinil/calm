@@ -37,14 +37,10 @@
 # displaying
 - https://stackoverflow.com/questions/27513201/how-to-properly-texture-a-quad-in-opengl
 
-# competition
-
-- https://parsec.app/blog/a-networking-protocol-built-for-the-lowest-latency-interactive-game-streaming-1fd5a03a6007
-
 # networking
 
 - lan peer discovery https://gamedev.stackexchange.com/questions/30761/solution-for-lightweight-lan-peer-discovering
-- use https://github.com/networkprotocol/yojimbo or https://github.com/ValveSoftware/GameNetworkingSockets - list https://stackoverflow.com/questions/118945/best-c-c-network-library/118968#118968
+- use https://github.com/networkprotocol/yojimbo or https://github.com/ValveSoftware/GameNetworkingSockets -> list https://stackoverflow.com/questions/118945/best-c-c-network-library/118968#118968
 - https://github.com/ValveSoftware/GameNetworkingSockets
 - https://isetta.io/compendium/Networking/
 - https://www.reddit.com/r/gamedev/comments/93kr9h/recommended_c_udp_networking_library/
@@ -52,19 +48,11 @@
 - https://github.com/SLikeSoft/SLikeNet
 - enet example https://github.com/cxong/ENetLANChatServer
 - https://github.com/Haivision/srt
+- https://parsec.app/blog/a-networking-protocol-built-for-the-lowest-latency-interactive-game-streaming-1fd5a03a6007
 
 # useful misc
 
 - https://www.osstatus.com/
-- https://github.com/jtsiomb
-
-# commands
-
-- to convert the h264 to playable mp4 `ffmpeg -i dump.h264 -c copy test.mp4`, can do it without -codec copy
-  - https://superuser.com/questions/710008/how-to-get-rid-of-ffmpeg-pts-has-no-value-error
-  - `ffmpeg -i dump.h264 -r 60 -f rawvideo -pix_fmt bgra -s 1920x1080 test.mp4`
-- inspect streams `ffprobe -show_streams -i "test.mp4"`
-- play via mpv `mpv dump.h264`
 
 # prior art
 
@@ -75,7 +63,7 @@
 # todo
 
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
-- switch to tcp for now, make it work
+- client crashes after connecting
 - cursor only seen when first starting
 
 # vscode extensions

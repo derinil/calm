@@ -17,6 +17,7 @@ struct ThreadArgs {
   int ret;
 };
 
+void void_cframe_releaser(void *vdf) { release_cframe((struct CFrame *)vdf); }
 void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
 
 void decompressed_frame_callback(struct DFrame *frame) {
@@ -24,8 +25,11 @@ void decompressed_frame_callback(struct DFrame *frame) {
 }
 
 void frame_callback(struct CFrame *frame) {
+  // dstack_push(g_server->compressed_stack, frame, 1);
+  net_send_frame(g_server->net_server, frame);
+  // Lower priority on the server
   decode_frame(g_server->decoder, frame);
-  dstack_push(g_server->compressed_stack, frame, 1);
+  release_cframe(frame);
 }
 
 void *capture_thread(void *vargs) {
@@ -70,7 +74,7 @@ int start_server() {
   if (!capturer)
     return 2;
 
-  compressed_stack = create_dstack(NULL);
+  compressed_stack = create_dstack(void_cframe_releaser);
   if (!compressed_stack)
     return 3;
 
@@ -107,8 +111,6 @@ int start_server() {
   run_dummy_gui(server->decompressed_stack);
 #endif
 
-  printf("3\n");
-
   pthread_join(server->net_thread, NULL);
   if (net_ret.ret)
     printf("net thread failed with code %d\n", net_ret.ret);
@@ -116,13 +118,9 @@ int start_server() {
   if (cap_ret.ret)
     printf("capture thread failed with code %d\n", cap_ret.ret);
 
-  printf("4\n");
-
   err = net_destroy_server(server->net_server);
   if (err)
     return err;
-
-  printf("5\n");
 
   err = stop_capture(server->capturer);
   if (err)

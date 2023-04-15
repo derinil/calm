@@ -1,22 +1,28 @@
 #ifndef NET_SERVER_H_
 #define NET_SERVER_H_
 
+#include "../capture/capture.h"
+#include "../data/stack.h"
 #include "uv.h"
+#include "uv/unix.h"
 #include <stddef.h>
 #include <stdint.h>
-#include "../data/stack.h"
 
 #define CALM_PORT 58912
 
 struct NetServer {
+  int connected;
   uv_loop_t *loop;
+  uv_stream_t *client;
   uv_tcp_t *tcp_server;
+  uv_mutex_t mutex;
   struct DStack *stack;
 };
 
 struct NetServer *net_setup_server(struct DStack *stack);
 int net_start_server(struct NetServer *server);
-int send_reliable(struct NetServer *s, uint8_t *data, size_t len);
-int net_destroy_server(struct NetServer *s);
+int send_reliable(struct NetServer *server, uint8_t *data, size_t len);
+void net_send_frame(struct NetServer *server, struct CFrame *frame);
+int net_destroy_server(struct NetServer *server);
 
 #endif

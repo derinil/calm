@@ -26,10 +26,14 @@ struct NetClient *setup_client(struct DStack *stack) {
 }
 
 int destroy_client(struct NetClient *c) {
-  uv_close((uv_handle_t *)c->tcp_stream, NULL);
-  uv_read_stop(c->tcp_stream);
+  if (c->tcp_stream) {
+    uv_close((uv_handle_t *)c->tcp_stream, NULL);
+    uv_read_stop(c->tcp_stream);
+    free(c->tcp_stream);
+  }
+  if (c->tcp_socket)
+    free(c->tcp_socket);
   uv_loop_close(c->loop);
-  free(c->tcp_socket);
   free(c);
   return 0;
 }
@@ -55,10 +59,15 @@ void on_close(uv_handle_t *handle) {
 #if 0
   printf("connection closed\n")
 #endif
+  free(handle);
   pthread_exit(NULL);
 }
 
-void on_write(uv_write_t *req, int status) { free(req); }
+void on_write(uv_write_t *req, int status) {
+  if (status)
+    uv_close((uv_handle_t *)req->handle, NULL);
+  free(req);
+}
 
 void on_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
   if (nread >= 0) {
@@ -66,9 +75,8 @@ void on_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
   } else {
     pthread_exit(NULL);
   }
-  if (buf) {
+  if (buf->base) {
     free(buf->base);
-    free((void *)buf);
   }
 }
 
