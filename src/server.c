@@ -27,6 +27,7 @@ void decompressed_frame_callback(struct DFrame *frame) {
 void frame_callback(struct CFrame *frame) {
   // dstack_push(g_server->compressed_stack, frame, 1);
   net_send_frame(g_server->net_server, frame);
+  printf("conntected: %d\n", g_server->net_server->connected);
   // Lower priority on the server
   decode_frame(g_server->decoder, frame);
   release_cframe(frame);

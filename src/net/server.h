@@ -13,7 +13,7 @@
 struct NetServer {
   int connected;
   uv_loop_t *loop;
-  uv_stream_t *client;
+  uv_tcp_t *tcp_client;
   uv_tcp_t *tcp_server;
   uv_mutex_t mutex;
   struct DStack *stack;

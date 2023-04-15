@@ -61,16 +61,18 @@ void net_send_frame(struct NetServer *server, struct CFrame *frame) {
   uv_write_t *req;
   struct SerializedBuffer *buf;
 
-  if (server->connected == 0 || server->client == NULL)
+  if (server->connected == 0 || server->tcp_client == NULL)
     return;
-  printf("sending buffer\n");
+  // printf("sending buffer\n");
   buf = serialize_cframe(frame);
   if (!buf)
     return;
   req = (uv_write_t *)malloc(sizeof(uv_write_t));
+  req->data = server;
   wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-  uv_write(req, server->client, &wrbuf, 1, on_write_callback);
-  printf("sent buffer\n");
+  uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
+           on_write_callback);
+  // printf("sent buffer\n");
 }
 
 void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
@@ -83,7 +85,7 @@ void on_write_callback(uv_write_t *req, int status) {
   if (status) {
     fprintf(stderr, "Write error %s\n", uv_strerror(status));
     uv_mutex_lock(&server->mutex);
-    uv_close((uv_handle_t *)req->handle, on_close_callback);
+    uv_close((uv_handle_t *)server->tcp_client, on_close_callback);
     uv_mutex_unlock(&server->mutex);
   }
   free(req);
@@ -111,7 +113,7 @@ void on_close_callback(uv_handle_t *handle) {
   printf("closed conn\n");
   uv_mutex_lock(&server->mutex);
   server->connected = 0;
-  server->client = NULL;
+  server->tcp_client = NULL;
   uv_mutex_unlock(&server->mutex);
   free(handle);
 }
@@ -137,7 +139,7 @@ void on_new_connection(uv_stream_t *stream, int status) {
   }
   uv_mutex_lock(&server->mutex);
   server->connected = 1;
-  server->client = (uv_stream_t *)client;
+  server->tcp_client = client;
   uv_mutex_unlock(&server->mutex);
   uv_read_start((uv_stream_t *)client, alloc_buffer, on_read_callback);
   printf("started reading\n");
