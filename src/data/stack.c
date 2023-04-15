@@ -60,7 +60,9 @@ void *dstack_pop_block(struct DStack *ds) {
   void *el = NULL;
   struct DSElement *element = NULL;
   uv_mutex_lock(&ds->mutex);
-  uv_cond_wait(&ds->cond, &ds->mutex);
+  // TODO: https://github.com/libuv/help/issues/134
+  while (ds->length == 0)
+    uv_cond_wait(&ds->cond, &ds->mutex);
   if (ds->length == 0)
     goto end;
   element = &ds->elements[ds->read_curr];
@@ -70,7 +72,7 @@ void *dstack_pop_block(struct DStack *ds) {
   element->read_count++;
   if (element->remove_at > element->read_count)
     goto end;
-  ds->elements[ds->read_curr] = (struct DSElement){0};
+  ds->elements[ds->read_curr] = (struct DSElement){0};;
   ds->read_curr++;
   ds->length--;
   if (ds->read_curr == MAX_DS_LEN)

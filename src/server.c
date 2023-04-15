@@ -16,7 +16,7 @@ struct ThreadArgs {
   int ret;
 };
 
-void void_cframe_releaser(void *vdf) { release_cframe((struct CFrame *)vdf); }
+void void_cframe_releaser(void *vcf) { release_cframe((struct CFrame *)vcf); }
 void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
 
 void decompressed_frame_callback(struct DFrame *frame) {

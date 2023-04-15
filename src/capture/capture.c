@@ -39,8 +39,6 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   if (!buf)
     return NULL;
 
-  printf("1\n");
-
   buf_off = 0;
   write_uint64(buf + buf_off, buf_len);
   buf_off += 8;
@@ -50,7 +48,6 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   buf_off += frame->frame_length;
   write_uint64(buf + buf_off, frame->parameter_sets_count);
   buf_off += 8;
-  printf("2\n");
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
     write_uint64(buf + buf_off, frame->parameter_sets_lengths[i]);
     buf_off += 8;
@@ -58,9 +55,8 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
            frame->parameter_sets_lengths[i]);
     buf_off += frame->parameter_sets_lengths[i];
   }
-  printf("3\n");
 
-  // Sanity check
+  // TODO: Sanity check
   if (buf_off != buf_len) {
     printf("offset and length mismatch\n");
   }
