@@ -60,11 +60,16 @@ static void read_cframe_alloc_cb(uv_handle_t *handle, size_t size,
   case 0:
     // Allocate 8 bytes to read the start of a cframe
     *buf = uv_buf_init(malloc(8), 8);
+    client->read_state->state = 1;
     break;
-  case 1:
+  case 2:
     // Allocate bytes required to read the frame
     *buf = uv_buf_init(malloc(client->read_state->buf_len),
                        client->read_state->buf_len);
+    // TODO: instead of allocating each time, allocate once, then save the
+    // offset in state and return that each time until full
+    // for example uv_buf_init(buffer + offset, total length - offset);
+    client->read_state->state = 3;
     break;
   default:
     // UNREACHABLE
@@ -102,20 +107,20 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   }
 
   switch (client->read_state->state) {
-  case 0:
+  case 1:
     if (nread != 8 || buf->len != 8) {
       printf("failed to read total buffer length %lu %lu\n", nread, buf->len);
-      return;
+      break;
     }
     client->read_state->buf_len = read_uint64((uint8_t *)buf->base);
     printf("got buf len %llu\n", client->read_state->buf_len);
-    client->read_state->state = 1;
+    client->read_state->state = 2;
     break;
-  case 1:
+  case 3:
     if ((uint64_t)nread != client->read_state->buf_len ||
         buf->len != client->read_state->buf_len) {
       printf("failed to read total buffer %lu %lu\n", nread, buf->len);
-      return;
+      break;
     }
     frame = unmarshal_cframe((uint8_t *)buf->base, buf->len);
     dstack_push(client->stack, (void *)frame, 1);

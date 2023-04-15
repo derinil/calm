@@ -82,7 +82,7 @@ void net_send_frames_loop(void *vargs) {
     buf = serialize_cframe(frame);
     if (!buf)
       continue;
-    // TODO: sometimes libuv blocks for a bit and if we release before decoder finishes we get a -12909 or a -12707
+    // TODO: sometimes libuv blocks for a bit and if we release before decoder finishes we get a -12909 or a -12707 or a -12704
     release_cframe(frame);
     frame = NULL;
     awr = malloc(sizeof(*awr));
@@ -174,10 +174,15 @@ void on_new_connection(uv_stream_t *stream, int status) {
   uv_thread_create(&server->send_loop, net_send_frames_loop, server);
 }
 
+volatile int once = 0;
+
 void async_callback(uv_async_t *async) {
   struct AsyncWriteRequest *awr = (struct AsyncWriteRequest *)async->data;
+  if (once != 0)
+    return;
   // TODO: we crash if conn closes right here
   uv_write(awr->req, awr->handle, awr->buffer, 1, on_write_callback);
   printf("wrote %lu\n", awr->buffer->len);
   free(awr);
+  once = 1;
 }

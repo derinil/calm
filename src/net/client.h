@@ -11,7 +11,9 @@
 // NOTE: https://groups.google.com/g/libuv/c/fRNQV_QGgaA
 struct ClientReadState {
   // 0 -> reading the full packet length
-  // 1 -> reading the frame itself
+  // 1 -> allocated the full packet length, waiting for frame
+  // 2 -> reading the frame itself
+  // 3 -> allocated the full packet length, go next frame
   int state;
   uint64_t buf_len;
 };
