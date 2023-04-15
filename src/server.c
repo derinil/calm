@@ -24,12 +24,10 @@ void decompressed_frame_callback(struct DFrame *frame) {
 }
 
 void frame_callback(struct CFrame *frame) {
-  // dstack_push(g_server->compressed_stack, frame, 1);
-  net_send_frame(g_server->net_server, frame);
-  printf("conntected: %d\n", g_server->net_server->connected);
+  dstack_push(g_server->compressed_stack, frame, 1);
   // Lower priority on the server
   decode_frame(g_server->decoder, frame);
-  release_cframe(frame);
+  // release_cframe(frame);
 }
 
 void capture_thread(void *vargs) {
@@ -99,7 +97,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 1
+#if 0
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
@@ -109,6 +107,7 @@ int start_server() {
 
   uv_thread_join(&server->net_thread);
   uv_thread_join(&server->capture_thread);
+
   if (net_ret.ret)
     printf("net thread failed with code %d\n", net_ret.ret);
   if (cap_ret.ret)
@@ -117,7 +116,6 @@ int start_server() {
   err = net_destroy_server(server->net_server);
   if (err)
     return err;
-
   err = stop_capture(server->capturer);
   if (err)
     return err;

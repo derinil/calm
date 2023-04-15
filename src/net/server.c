@@ -56,25 +56,34 @@ int net_start_server(struct NetServer *server) {
   return uv_run(server->loop, UV_RUN_DEFAULT);
 }
 
-void net_send_frame(struct NetServer *server, struct CFrame *frame) {
+void net_send_frames(struct NetServer *server) {
   uv_buf_t wrbuf;
   uv_write_t *req;
+  struct CFrame *frame;
   struct SerializedBuffer *buf;
 
-  uv_mutex_lock(&server->mutex);
-  if (server->connected == 0 || server->tcp_client == NULL)
-    return;
-  // printf("sending buffer\n");
-  buf = serialize_cframe(frame);
-  if (!buf)
-    return;
-  req = (uv_write_t *)malloc(sizeof(uv_write_t));
-  req->data = server;
-  wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-  uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
-           on_write_callback);
-  // printf("sent buffer\n");
-  uv_mutex_unlock(&server->mutex);
+  printf("pre loop %d %d\n", server->connected, server->stack == NULL);
+
+  while (server->connected) {
+    printf("yoop\n");
+    frame = (struct CFrame *)dstack_pop_block(server->stack);
+    printf("serializing buffer\n");
+    buf = serialize_cframe(frame);
+    if (!buf)
+      return;
+    release_cframe(frame);
+    frame = NULL;
+    printf("sending buffer\n");
+    req = (uv_write_t *)malloc(sizeof(uv_write_t));
+    req->data = server;
+    wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
+    // we can free the buffer here without freeing the actual underlying char
+    // array
+    free(buf);
+    uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
+             on_write_callback);
+    printf("sent buffer\n");
+  }
 }
 
 void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
@@ -144,5 +153,6 @@ void on_new_connection(uv_stream_t *stream, int status) {
   server->tcp_client = client;
   uv_mutex_unlock(&server->mutex);
   uv_read_start((uv_stream_t *)client, alloc_buffer, on_read_callback);
-  printf("started reading\n");
+  printf("started reading %d\n", server->connected);
+  net_send_frames(server);
 }

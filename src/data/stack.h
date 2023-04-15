@@ -2,7 +2,6 @@
 #define DATA_STACK_H_
 
 #include "uv.h"
-#include <pthread.h>
 #include <stddef.h>
 
 #define MAX_DS_LEN 2048
@@ -29,7 +28,6 @@ struct DStack {
   FreeElement freer;
   uv_mutex_t mutex;
   uv_cond_t cond;
-  pthread_cond_t ready;
   struct DSElement elements[MAX_DS_LEN];
 };
 

@@ -1,6 +1,5 @@
 #include "stack.h"
 #include "uv.h"
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -47,11 +46,11 @@ void *dstack_pop_nonblock(struct DStack *ds) {
   element->read_count++;
   if (element->remove_at > element->read_count)
     goto end;
+  ds->elements[ds->read_curr] = (struct DSElement){0};
   ds->read_curr++;
   ds->length--;
   if (ds->read_curr == MAX_DS_LEN)
     ds->read_curr = 0;
-  ds->elements[ds->read_curr] = (struct DSElement){0};
 end:
   uv_mutex_unlock(&ds->mutex);
   return el;
@@ -59,7 +58,7 @@ end:
 
 void *dstack_pop_block(struct DStack *ds) {
   void *el = NULL;
-  struct DSElement *element;
+  struct DSElement *element = NULL;
   uv_mutex_lock(&ds->mutex);
   uv_cond_wait(&ds->cond, &ds->mutex);
   if (ds->length == 0)
@@ -71,11 +70,11 @@ void *dstack_pop_block(struct DStack *ds) {
   element->read_count++;
   if (element->remove_at > element->read_count)
     goto end;
+  ds->elements[ds->read_curr] = (struct DSElement){0};
   ds->read_curr++;
   ds->length--;
   if (ds->read_curr == MAX_DS_LEN)
     ds->read_curr = 0;
-  ds->elements[ds->read_curr] = (struct DSElement){0};
 end:
   uv_mutex_unlock(&ds->mutex);
   return el;

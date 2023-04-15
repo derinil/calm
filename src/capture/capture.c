@@ -1,8 +1,10 @@
 #include "capture.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static void write_uint64(uint8_t *buf, uint64_t u) {
+  // Sure hope this is not running on a big endian system!
   for (int i = 0; i < 8; i++)
     buf[i] = u & (0xF0000000 >> i);
 }
@@ -10,6 +12,7 @@ static void write_uint64(uint8_t *buf, uint64_t u) {
 struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
   uint64_t buf_len = 0;
+  uint64_t buf_off = 0;
   struct SerializedBuffer *serbuf;
 
   serbuf = malloc(sizeof(*serbuf));
@@ -17,6 +20,7 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
     return NULL;
   memset(serbuf, 0, sizeof(*serbuf));
 
+  buf_len = 0;
   // Length for buf_len itself
   buf_len += sizeof(buf_len);
   // Length for frame_length
@@ -35,13 +39,30 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   if (!buf)
     return NULL;
 
-  write_uint64(buf, buf_len);
-  write_uint64(buf, frame->frame_length);
-  memcpy(buf, frame->frame, frame->frame_length);
-  write_uint64(buf, frame->parameter_sets_count);
+  printf("1\n");
+
+  buf_off = 0;
+  write_uint64(buf + buf_off, buf_len);
+  buf_off += 8;
+  write_uint64(buf + buf_off, frame->frame_length);
+  buf_off += 8;
+  memcpy(buf + buf_off, frame->frame, frame->frame_length);
+  buf_off += frame->frame_length;
+  write_uint64(buf + buf_off, frame->parameter_sets_count);
+  buf_off += 8;
+  printf("2\n");
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    write_uint64(buf, frame->parameter_sets_lengths[i]);
-    memcpy(buf, frame->parameter_sets[i], frame->parameter_sets_lengths[i]);
+    write_uint64(buf + buf_off, frame->parameter_sets_lengths[i]);
+    buf_off += 8;
+    memcpy(buf + buf_off, frame->parameter_sets[i],
+           frame->parameter_sets_lengths[i]);
+    buf_off += frame->parameter_sets_lengths[i];
+  }
+  printf("3\n");
+
+  // Sanity check
+  if (buf_off != buf_len) {
+    printf("offset and length mismatch\n");
   }
 
   serbuf->buffer = buf;
