@@ -77,16 +77,14 @@ void net_send_frames_loop(void *vargs) {
   uv_async_init(server->loop, &async, async_callback);
 
   // TODO: make connected atomic
-  while (server->connected && !server->disconnect) {
-    printf("yoop %d\n", server->stack == NULL);
+  while (server->connected) {
     frame = (struct CFrame *)dstack_pop_block(server->stack);
-    printf("serializing buffer\n");
     buf = serialize_cframe(frame);
     if (!buf)
       continue;
+    // TODO: sometimes libuv blocks for a bit and if we release before decoder finishes we get a -12909 or a -12707
     release_cframe(frame);
     frame = NULL;
-    printf("sending buffer\n");
     awr = malloc(sizeof(*awr));
     req = malloc(sizeof(*req));
     req->data = server;
@@ -100,9 +98,9 @@ void net_send_frames_loop(void *vargs) {
     awr->handle = (uv_stream_t *)server->tcp_client;
 
     async.data = awr;
+    // TODO: libuv will coalesce calls??????
+    // http://docs.libuv.org/en/v1.x/async.html
     uv_async_send(&async);
-
-    printf("sent buffer\n");
   }
 }
 
@@ -114,11 +112,8 @@ void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
 void on_write_callback(uv_write_t *req, int status) {
   struct NetServer *server = (struct NetServer *)req->data;
   if (status) {
-    printf("Write error %s\n", uv_strerror(status));
-    server->disconnect = 1;
+    // printf("Write error %s\n", uv_strerror(status));
     uv_close((uv_handle_t *)server->tcp_client, on_close_callback);
-  } else {
-    printf("write successful\n");
   }
   free(req);
 }
@@ -127,14 +122,9 @@ void on_read_callback(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
   struct NetServer *server = (struct NetServer *)client->data;
   if (nread < 0) {
     if (nread != UV_EOF) {
-      fprintf(stderr, "Read error %s\n", uv_err_name(nread));
-      server->disconnect = 1;
+      // printf("Read error %s\n", uv_err_name(nread));
       uv_close((uv_handle_t *)client, on_close_callback);
     }
-  } else if (nread > 0) {
-    uv_write_t *req = malloc(sizeof(uv_write_t));
-    uv_buf_t wrbuf = uv_buf_init(buf->base, nread);
-    uv_write(req, client, &wrbuf, 1, on_write_callback);
   }
 
   if (buf->base) {
@@ -186,8 +176,8 @@ void on_new_connection(uv_stream_t *stream, int status) {
 
 void async_callback(uv_async_t *async) {
   struct AsyncWriteRequest *awr = (struct AsyncWriteRequest *)async->data;
-  printf("writing \n");
+  // TODO: we crash if conn closes right here
   uv_write(awr->req, awr->handle, awr->buffer, 1, on_write_callback);
-  printf("writed\n");
+  printf("wrote %lu\n", awr->buffer->len);
   free(awr);
 }

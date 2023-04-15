@@ -12,7 +12,6 @@
 
 struct NetServer {
   int connected;
-  int disconnect;
   uv_loop_t *loop;
   uv_tcp_t *tcp_client;
   uv_tcp_t *tcp_server;

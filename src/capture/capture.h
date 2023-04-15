@@ -46,5 +46,7 @@ struct SerializedBuffer {
 
 struct SerializedBuffer *serialize_cframe(struct CFrame *frame);
 void release_serbuf_cframe(struct SerializedBuffer *buffer);
+uint64_t read_uint64(uint8_t *buf);
+struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length);
 
 #endif

@@ -1,11 +1,20 @@
 #ifndef NET_CLIENT_H_
 #define NET_CLIENT_H_
 
+#include "../data/stack.h"
 #include "uv.h"
 #include <stdint.h>
-#include "../data/stack.h"
 
 #define CALM_PORT 58912
+
+// Statefully read a CFrame
+// NOTE: https://groups.google.com/g/libuv/c/fRNQV_QGgaA
+struct ClientReadState {
+  // 0 -> reading the full packet length
+  // 1 -> reading the frame itself
+  int state;
+  uint64_t buf_len;
+};
 
 struct NetClient {
   uv_loop_t *loop;
@@ -14,6 +23,7 @@ struct NetClient {
   uv_mutex_t mutex;
   uv_tcp_t *tcp_socket;
   uv_stream_t *tcp_stream;
+  struct ClientReadState *read_state;
   struct DStack *stack;
 };
 

@@ -50,6 +50,10 @@
 - https://github.com/Haivision/srt
 - https://parsec.app/blog/a-networking-protocol-built-for-the-lowest-latency-interactive-game-streaming-1fd5a03a6007
 
+## libuv notes
+
+- https://groups.google.com/g/libuv/c/fRNQV_QGgaA
+
 # useful misc
 
 - https://www.osstatus.com/
