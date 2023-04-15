@@ -5,12 +5,12 @@
 #include "data/stack.h"
 #include "decode/decode.h"
 #include "net/server.h"
-#include <pthread.h>
 #include <stdint.h>
+#include "uv.h"
 
 struct Server {
-  pthread_t net_thread;
-  pthread_t capture_thread;
+  uv_thread_t net_thread;
+  uv_thread_t capture_thread;
   struct Decoder *decoder;
   struct Capturer *capturer;
   struct NetServer *net_server;

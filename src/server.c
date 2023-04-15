@@ -6,7 +6,6 @@
 #include "gui/server_gui.h"
 #include "net/server.h"
 #include "uv.h"
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -33,7 +32,7 @@ void frame_callback(struct CFrame *frame) {
   release_cframe(frame);
 }
 
-void *capture_thread(void *vargs) {
+void capture_thread(void *vargs) {
   int err;
   struct ThreadArgs *args = (struct ThreadArgs *)vargs;
   err = start_capture(g_server->capturer);
@@ -42,10 +41,9 @@ void *capture_thread(void *vargs) {
   getchar();
 exit:
   args->ret = err;
-  return NULL;
 }
 
-void *server_net_thread(void *vargs) {
+void server_net_thread(void *vargs) {
   int err;
   struct ThreadArgs *args = (struct ThreadArgs *)vargs;
   err = net_start_server(g_server->net_server);
@@ -53,7 +51,6 @@ void *server_net_thread(void *vargs) {
     goto exit;
 exit:
   args->ret = err;
-  return NULL;
 }
 
 int start_server() {
@@ -99,12 +96,10 @@ int start_server() {
 
   g_server = server;
 
-  pthread_create(&(server->net_thread), NULL, server_net_thread,
-                 (void *)&net_ret);
-  pthread_create(&(server->capture_thread), NULL, capture_thread,
-                 (void *)&cap_ret);
+  uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
+  uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 0
+#if 1
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
@@ -112,10 +107,10 @@ int start_server() {
   run_dummy_gui(server->decompressed_stack);
 #endif
 
-  pthread_join(server->net_thread, NULL);
+  uv_thread_join(&server->net_thread);
+  uv_thread_join(&server->capture_thread);
   if (net_ret.ret)
     printf("net thread failed with code %d\n", net_ret.ret);
-  pthread_join(server->capture_thread, NULL);
   if (cap_ret.ret)
     printf("capture thread failed with code %d\n", cap_ret.ret);
 

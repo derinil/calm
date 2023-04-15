@@ -61,6 +61,7 @@ void net_send_frame(struct NetServer *server, struct CFrame *frame) {
   uv_write_t *req;
   struct SerializedBuffer *buf;
 
+  uv_mutex_lock(&server->mutex);
   if (server->connected == 0 || server->tcp_client == NULL)
     return;
   // printf("sending buffer\n");
@@ -73,6 +74,7 @@ void net_send_frame(struct NetServer *server, struct CFrame *frame) {
   uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
            on_write_callback);
   // printf("sent buffer\n");
+  uv_mutex_unlock(&server->mutex);
 }
 
 void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
