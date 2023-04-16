@@ -1,5 +1,6 @@
 #include "server.h"
 #include "capture/capture.h"
+#include "common.h"
 #include "data/stack.h"
 #include "decode/decode.h"
 #include "gui/dummy_gui.h"
@@ -11,15 +12,7 @@
 
 static struct Server *g_server;
 
-struct ThreadArgs {
-  void *args;
-  int ret;
-};
-
-void void_cframe_releaser(void *vcf) { release_cframe((struct CFrame *)vcf); }
-void void_dframe_releaser(void *vdf) { release_dframe((struct DFrame *)vdf); }
-
-void decompressed_frame_callback(struct DFrame *frame) {
+void server_decompressed_frame_callback(struct DFrame *frame) {
   dstack_push(g_server->decompressed_stack, frame, 1);
 }
 
@@ -82,7 +75,7 @@ int start_server() {
   if (!net_server)
     return 5;
 
-  decoder = setup_decoder(decompressed_frame_callback);
+  decoder = setup_decoder(server_decompressed_frame_callback);
   if (!decoder)
     return 6;
 

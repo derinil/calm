@@ -13,9 +13,13 @@ struct ClientReadState {
   // 0 -> reading the full packet length
   // 1 -> allocated the full packet length, waiting for frame
   // 2 -> reading the frame itself
-  // 3 -> allocated the full packet length, go next frame
+  // 3 -> allocated the full packet length, fill it up
   int state;
   uint64_t buf_len;
+  uint8_t *buf_len_buffer;
+  uint64_t buf_len_off;
+  uint8_t *buffer;
+  uint64_t buf_off;
 };
 
 struct NetClient {

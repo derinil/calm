@@ -15,6 +15,7 @@ struct NetServer {
   uv_loop_t *loop;
   uv_tcp_t *tcp_client;
   uv_tcp_t *tcp_server;
+  uv_idle_t idle;
   uv_mutex_t mutex;
   uv_thread_t send_loop;
   struct DStack *stack;

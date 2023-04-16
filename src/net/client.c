@@ -9,6 +9,7 @@
 #include <strings.h>
 
 void on_connect(uv_connect_t *connection, int status);
+void on_close_cb(uv_handle_t *handle);
 
 struct NetClient *setup_client(struct DStack *stack) {
   int err;
@@ -27,11 +28,8 @@ struct NetClient *setup_client(struct DStack *stack) {
 }
 
 int destroy_client(struct NetClient *client) {
-  if (client->tcp_stream) {
-    // TODO: close callback
-    uv_close((uv_handle_t *)client->tcp_stream, NULL);
-    free(client->tcp_stream);
-  }
+  if (client->tcp_stream)
+    uv_close((uv_handle_t *)client->tcp_stream, on_close_cb);
   if (client->tcp_socket)
     free(client->tcp_socket);
   uv_loop_close(client->loop);
@@ -59,25 +57,36 @@ static void read_cframe_alloc_cb(uv_handle_t *handle, size_t size,
   switch (client->read_state->state) {
   case 0:
     // Allocate 8 bytes to read the start of a cframe
-    *buf = uv_buf_init(malloc(8), 8);
-    client->read_state->state = 1;
+    client->read_state->buf_len_buffer =
+        malloc(sizeof(*client->read_state->buf_len_buffer) * 8);
+    *buf = uv_buf_init((char *)client->read_state->buf_len_buffer, 8);
+    break;
+  case 1:
+    // Fill up the allocated frame buffer length
+    *buf = uv_buf_init((char *)client->read_state->buf_len_buffer +
+                           client->read_state->buf_len_off,
+                       8 - client->read_state->buf_len_off);
     break;
   case 2:
     // Allocate bytes required to read the frame
-    *buf = uv_buf_init(malloc(client->read_state->buf_len),
+    client->read_state->buffer = malloc(sizeof(*client->read_state->buffer) *
+                                        client->read_state->buf_len);
+    *buf = uv_buf_init((char *)client->read_state->buffer,
                        client->read_state->buf_len);
-    // TODO: instead of allocating each time, allocate once, then save the
-    // offset in state and return that each time until full
-    // for example uv_buf_init(buffer + offset, total length - offset);
-    client->read_state->state = 3;
+    break;
+  case 3:
+    // Fill up the allocated frame buffer
+    *buf = uv_buf_init(
+        (char *)(client->read_state->buffer + client->read_state->buf_off),
+        client->read_state->buf_len - client->read_state->buf_off);
     break;
   default:
-    // UNREACHABLE
+    /* UNREACHABLE */
     break;
   }
 }
 
-void on_close(uv_handle_t *handle) {
+void on_close_cb(uv_handle_t *handle) {
 #if 0
   printf("connection closed\n")
 #endif
@@ -88,7 +97,7 @@ void on_close(uv_handle_t *handle) {
 
 void on_write(uv_write_t *req, int status) {
   if (status)
-    uv_close((uv_handle_t *)req->handle, NULL);
+    uv_close((uv_handle_t *)req->handle, on_close_cb);
   free(req);
 }
 
@@ -101,35 +110,58 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   if (nread < 0) {
     if (nread != UV_EOF) {
       printf("Read error %s\n", uv_err_name(nread));
-      uv_close((uv_handle_t *)stream, NULL);
+      uv_close((uv_handle_t *)stream, on_close_cb);
       pthread_exit(NULL);
     }
   }
 
   switch (client->read_state->state) {
-  case 1:
-    if (nread != 8 || buf->len != 8) {
-      printf("failed to read total buffer length %lu %lu\n", nread, buf->len);
+  case 0:
+    client->read_state->buf_len_off += nread;
+    if (nread != 8) {
+      client->read_state->state = 1;
       break;
     }
-    client->read_state->buf_len = read_uint64((uint8_t *)buf->base);
-    printf("got buf len %llu\n", client->read_state->buf_len);
+    /* FALLTHROUGH IF BUFFER IS FULL */
+  case 1:
+    if (client->read_state->buf_len_off != 8) {
+      client->read_state->buf_len_off += nread;
+      break;
+    }
+    client->read_state->buf_len =
+        read_uint64(client->read_state->buf_len_buffer);
+    printf("got frame len %llu\n", client->read_state->buf_len);
+    free(client->read_state->buf_len_buffer);
     client->read_state->state = 2;
     break;
-  case 3:
-    if ((uint64_t)nread != client->read_state->buf_len ||
-        buf->len != client->read_state->buf_len) {
-      printf("failed to read total buffer %lu %lu\n", nread, buf->len);
+  case 2:
+    client->read_state->buf_off += nread;
+    if ((uint64_t)nread != client->read_state->buf_len) {
+      printf("read %lu\n", nread);
+      client->read_state->state = 3;
       break;
     }
-    frame = unmarshal_cframe((uint8_t *)buf->base, buf->len);
+    /* FALLTHROUGH IF BUFFER IS FULL */
+  case 3:
+    printf("state 3\n");
+    if (client->read_state->buf_off != client->read_state->buf_len) {
+      printf("state 31 %llu %llu\n", client->read_state->buf_off,
+             client->read_state->buf_len);
+      client->read_state->buf_off += nread;
+      break;
+    }
+    printf("unmarshaling frame\n");
+    // TODO: got -12712 once
+    frame = unmarshal_cframe(client->read_state->buffer,
+                             client->read_state->buf_len);
+    printf("unmarshaled frame %d\n", frame->is_keyframe);
     dstack_push(client->stack, (void *)frame, 1);
+    free(client->read_state->buffer);
     memset(client->read_state, 0, sizeof(*client->read_state));
     break;
-  }
-
-  if (buf->base) {
-    free(buf->base);
+  default:
+    if (buf->base)
+      free(buf->base);
   }
 }
 
