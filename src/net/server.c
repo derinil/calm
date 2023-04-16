@@ -69,23 +69,12 @@ int net_start_server(struct NetServer *server) {
   return uv_run(server->loop, UV_RUN_DEFAULT);
 }
 
-#ifdef ONCE
-volatile int once = 0;
-#endif
-
 void net_send_frame(uv_idle_t *handle) {
   uv_buf_t wrbuf;
   uv_write_t *req;
   struct CFrame *frame;
   struct SerializedBuffer *buf;
   struct NetServer *server = (struct NetServer *)handle->data;
-
-#ifdef ONCE
-  if (once)
-    return;
-
-  once = 1;
-#endif
 
   if (!server->connected)
     return;
@@ -96,7 +85,6 @@ void net_send_frame(uv_idle_t *handle) {
   buf = serialize_cframe(frame);
   if (!buf)
     return;
-  printf("sending %llu\n", buf->length);
   // TODO: sometimes libuv blocks for a bit and if we release before decoder
   // finishes we get a -12909 or a -12707 or a -12704
   release_cframe(frame);

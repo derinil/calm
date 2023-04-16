@@ -19,8 +19,7 @@ struct NetClient *setup_client(struct DStack *stack) {
   memset(client, 0, sizeof(*client));
   client->loop = uv_default_loop();
   client->stack = stack;
-  client->read_state = malloc(sizeof(*client->read_state));
-  memset(client->read_state, 0, sizeof(*client->read_state));
+  client->read_state = calloc(1, sizeof(*client->read_state));
   uv_cond_init(&client->cond);
   uv_mutex_init(&client->mutex);
   return client;
@@ -114,45 +113,39 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
     }
   }
 
+  client->read_state->buf_off += nread;
+
   switch (client->read_state->state) {
   case 0:
-    client->read_state->buf_len_off += nread;
-    if (nread != 8) {
+    if (client->read_state->buf_off != 8) {
       client->read_state->state = 1;
       break;
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
   case 1:
-    if (client->read_state->buf_len_off != 8) {
-      client->read_state->buf_len_off += nread;
+    if (client->read_state->buf_off != 8) {
       break;
     }
     client->read_state->buf_len =
         read_uint64(client->read_state->buf_len_buffer);
-    printf("got frame len %llu\n", client->read_state->buf_len);
     free(client->read_state->buf_len_buffer);
     client->read_state->state = 2;
+    client->read_state->buf_off = 0;
     break;
   case 2:
-    client->read_state->buf_off += nread;
-    if ((uint64_t)nread != client->read_state->buf_len) {
-      printf("read %lu\n", nread);
+    if ((uint64_t)client->read_state->buf_off != client->read_state->buf_len) {
       client->read_state->state = 3;
       break;
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
   case 3:
-    client->read_state->buf_off += nread;
+    // TODO: use != here, sometimes it overflows so ill keep it as < for now
     if (client->read_state->buf_off != client->read_state->buf_len) {
-      printf("state 31 %llu %llu\n", client->read_state->buf_off,
-             client->read_state->buf_len);
       break;
     }
-    printf("unmarshaling frame\n");
     // TODO: got -12712 once
     frame = unmarshal_cframe(client->read_state->buffer,
                              client->read_state->buf_len);
-    printf("unmarshaled frame %d\n", frame->is_keyframe);
     dstack_push(client->stack, (void *)frame, 1);
     free(client->read_state->buffer);
     memset(client->read_state, 0, sizeof(*client->read_state));
@@ -160,6 +153,7 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   default:
     if (buf->base)
       free(buf->base);
+    break;
   }
 }
 

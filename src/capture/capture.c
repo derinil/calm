@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 void print_cframe_hash(struct CFrame *frame);
 
@@ -90,15 +91,10 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
     buf_off += frame->parameter_sets_lengths[i];
   }
 
-  // TODO: Sanity check
-  if (buf_off != buf_len) {
-    printf("offset and length mismatch\n");
-  }
+  assert(buf_off == buf_len);
 
   serbuf->buffer = buf;
   serbuf->length = buf_len;
-
-  print_cframe_hash(frame);
 
   return serbuf;
 }
@@ -148,12 +144,7 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
     off += frame->parameter_sets_lengths[i];
   }
 
-  // TODO: Sanity check
-  if (off != length) {
-    printf("offset and length mismatch\n");
-  }
-
-  print_cframe_hash(frame);
+  assert(off == length);
 
   return frame;
 }

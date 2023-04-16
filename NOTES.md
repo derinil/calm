@@ -26,6 +26,7 @@
 - https://stackoverflow.com/questions/26601776/error-code-8969-12909-while-decoding-h264-in-ios-8-with-video-tool-box
 - https://github.com/htaiwan/HWDecoder
 - https://stackoverflow.com/questions/37091132/ios-yuv-420v-using-gl-texture-2d-shows-wrong-colour-in-opengl-shader
+- https://stackoverflow.com/questions/25078364/cmvideoformatdescriptioncreatefromh264parametersets-issues
 
 # colors
 
@@ -76,4 +77,13 @@
 
 # debugging
 - lldb on macos
-  - lldb ./zig-out/bin/calm -> process launch
+```
+lldb ./zig-out/bin/calm
+process launch
+kill
+gui
+step // one line of code
+next // one function
+breakpoint set --file src/decode/mac.m --line 188
+breakpoint delete 1
+```

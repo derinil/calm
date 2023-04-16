@@ -4,6 +4,7 @@
 #include "data/stack.h"
 #include "decode/decode.h"
 #include "gui/client_gui.h"
+#include "gui/dummy_gui.h"
 #include "net/client.h"
 #include "uv.h"
 #include <stdio.h>
@@ -15,19 +16,6 @@ static struct Client *g_client;
 // TODO: add a data field for callbacks, to both pass the stack and the cframe
 // to free
 void client_decompressed_frame_callback(struct DFrame *frame) {
-  printf("got decoded frame\n");
-#if 1
-  struct DFrame *dframe = frame;
-  FILE *f = fopen("test.ppm", "w+");
-  fprintf(f, "P3\n%lu %lu\n255\n", dframe->width, dframe->height);
-  for (size_t x = 0; x < dframe->data_length; x += 4) {
-    fprintf(f, "%u %u %u\n", dframe->data[x + 2], dframe->data[x + 1],
-            dframe->data[x]);
-  }
-  fflush(f);
-  fclose(f);
-  exit(0);
-#endif
   dstack_push(g_client->decompressed_stack, frame, 1);
 }
 
@@ -38,9 +26,7 @@ void decode_thread(void *vargs) {
   struct Client *client = (struct Client *)args->args;
   // TODO: mechanism to stop this
   while (1) {
-    printf("popping\n");
     cframe = (struct CFrame *)dstack_pop_block(client->compressed_stack);
-    printf("popped\n");
     print_cframe_hash(cframe);
     decode_frame(client->decoder, cframe);
     // TODO: free(cframe);
@@ -56,7 +42,7 @@ void net_thread(void *vargs) {
 }
 
 int start_client() {
-  int net_ret = 0;
+  int net_ret = 0, err = 0;
   struct Client *client;
   struct Decoder *decoder;
   struct NetClient *net_client;
@@ -90,6 +76,8 @@ int start_client() {
   client->compressed_stack = compressed_stack;
   client->decompressed_stack = decompressed_stack;
 
+  g_client = client;
+
   struct ThreadArgs net_args =
       (struct ThreadArgs){.args = net_client, .ret = 0};
   uv_thread_create(&client->net_thread, net_thread, (void *)&net_args);
@@ -97,9 +85,13 @@ int start_client() {
   struct ThreadArgs decode_args = (struct ThreadArgs){.args = client, .ret = 0};
   uv_thread_create(&client->decode_thread, decode_thread, (void *)&decode_args);
 
-  int err = handle_client_gui(decompressed_stack);
+#if 1
+  err = handle_client_gui(decompressed_stack);
   if (err)
     return err;
+#else
+  run_dummy_gui(decompressed_stack);
+#endif
 
   uv_thread_join(&client->net_thread);
   uv_thread_join(&client->decode_thread);
