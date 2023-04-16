@@ -3,6 +3,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+void print_cframe_hash(struct CFrame *frame);
+
+// Quick hash function
+// http://www.partow.net/programming/hashfunctions/index.html
+static unsigned int DJBHash(char *str, unsigned int length) {
+  unsigned int hash = 5381;
+  unsigned int i = 0;
+
+  for (i = 0; i < length; ++str, ++i) {
+    hash = ((hash << 5) + hash) + (*str);
+  }
+
+  return hash;
+}
+
 union ULLSplitter {
   uint64_t ull;
   uint8_t bs[8];
@@ -83,6 +98,8 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   serbuf->buffer = buf;
   serbuf->length = buf_len;
 
+  print_cframe_hash(frame);
+
   return serbuf;
 }
 
@@ -102,7 +119,8 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
   off += 8;
 
   frame->frame = malloc(sizeof(*frame->frame) * frame->frame_length);
-  memset(frame->frame, 0, sizeof(*frame->frame));
+  // TODO: dont need this
+  // memset(frame->frame, 0, sizeof(*frame->frame));
   memcpy(frame->frame, buffer + off, frame->frame_length);
   off += frame->frame_length;
 
@@ -135,5 +153,22 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
     printf("offset and length mismatch\n");
   }
 
+  print_cframe_hash(frame);
+
   return frame;
+}
+
+void print_cframe_hash(struct CFrame *frame) {
+  printf("frame length %llu\n", frame->frame_length);
+  // for (uint64_t i = 0; i < frame->frame_length; i++)
+  //   printf("%x", frame->frame[i]);
+  // printf("\n");
+  printf("got hash %u\n", DJBHash((char *)frame->frame, frame->frame_length));
+  printf("ps count %llu\n", frame->parameter_sets_count);
+  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+    printf("ps length %llu\n", frame->parameter_sets_lengths[i]);
+    for (uint64_t x = 0; x < frame->parameter_sets_lengths[i]; x++)
+      printf("%x", frame->parameter_sets[i][x]);
+    printf("\n");
+  }
 }

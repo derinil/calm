@@ -2,7 +2,6 @@
 #include "../capture/capture.h"
 #include "../data/stack.h"
 #include "uv.h"
-#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,7 +91,6 @@ void on_close_cb(uv_handle_t *handle) {
 #endif
   free(handle);
   // TODO: get rid of pthread
-  pthread_exit(NULL);
 }
 
 void on_write(uv_write_t *req, int status) {
@@ -109,9 +107,10 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 
   if (nread < 0) {
     if (nread != UV_EOF) {
-      printf("Read error %s\n", uv_err_name(nread));
-      uv_close((uv_handle_t *)stream, on_close_cb);
-      pthread_exit(NULL);
+      printf("Read error %d %s\n", client->read_state->state,
+             uv_err_name(nread));
+      // uv_close((uv_handle_t *)stream, on_close_cb);
+      // pthread_exit(NULL);
     }
   }
 
@@ -143,11 +142,10 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
   case 3:
-    printf("state 3\n");
+    client->read_state->buf_off += nread;
     if (client->read_state->buf_off != client->read_state->buf_len) {
       printf("state 31 %llu %llu\n", client->read_state->buf_off,
              client->read_state->buf_len);
-      client->read_state->buf_off += nread;
       break;
     }
     printf("unmarshaling frame\n");

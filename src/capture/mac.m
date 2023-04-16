@@ -87,6 +87,9 @@ void compressed_frame_callback(void *output_callback_ref_con,
 #define AVG_PS_LEN 1024
 #define AVG_DAT_LEN 10 * 1024
 
+  static const size_t startCodeLength = 4;
+  static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
+
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
   if (is_key) {

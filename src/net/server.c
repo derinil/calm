@@ -69,76 +69,39 @@ int net_start_server(struct NetServer *server) {
   return uv_run(server->loop, UV_RUN_DEFAULT);
 }
 
-// void net_send_frames_loop(void *vargs) {
-//   uv_buf_t wrbuf;
-//   uv_write_t *req;
-//   uv_async_t async;
-//   struct CFrame *frame;
-//   struct SerializedBuffer *buf;
-//   struct AsyncWriteRequest *awr;
-//   struct NetServer *server = (struct NetServer *)vargs;
+#ifdef ONCE
+volatile int once = 0;
+#endif
 
-//   uv_async_init(server->loop, &async, async_callback);
-
-//   // TODO: make connected atomic
-//   while (server->connected) {
-//     frame = (struct CFrame *)dstack_pop_block(server->stack);
-//     buf = serialize_cframe(frame);
-//     if (!buf)
-//       continue;
-//     // TODO: sometimes libuv blocks for a bit and if we release before
-//     decoder
-//     // finishes we get a -12909 or a -12707 or a -12704
-//     release_cframe(frame);
-//     awr = malloc(sizeof(*awr));
-//     memset(awr, 0, sizeof(*awr));
-//     req = malloc(sizeof(*req));
-//     memset(req, 0, sizeof(*req));
-//     req->data = server;
-//     wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-//     // we can free the buffer here without freeing the actual underlying char
-//     // array
-//     free(buf);
-
-//     awr->buffer = &wrbuf;
-//     awr->req = req;
-//     awr->handle = (uv_stream_t *)server->tcp_client;
-//     awr->s = frame->is_keyframe;
-
-//     uv_async_init(server->loop, &async, async_callback);
-
-//     async.data = awr;
-//     // TODO: libuv will coalesce calls??????
-//     // http://docs.libuv.org/en/v1.x/async.html
-//     uv_async_send(&async);
-//   }
-
-//   uv_close((uv_handle_t *)&async, NULL);
-// }
-
-void net_send_frames_loop(uv_idle_t *handle) {
+void net_send_frame(uv_idle_t *handle) {
   uv_buf_t wrbuf;
   uv_write_t *req;
   struct CFrame *frame;
   struct SerializedBuffer *buf;
-  struct AsyncWriteRequest *awr;
   struct NetServer *server = (struct NetServer *)handle->data;
+
+#ifdef ONCE
+  if (once)
+    return;
+
+  once = 1;
+#endif
 
   printf("looping\n");
 
   if (!server->connected)
     return;
 
-  frame = (struct CFrame *)dstack_pop_block(server->stack);
+  frame = (struct CFrame *)dstack_pop_nonblock(server->stack);
+  if (!frame)
+    return;
   buf = serialize_cframe(frame);
   if (!buf)
     return;
-  printf("sending\n");
+  printf("sending %llu\n", buf->length);
   // TODO: sometimes libuv blocks for a bit and if we release before decoder
   // finishes we get a -12909 or a -12707 or a -12704
   release_cframe(frame);
-  awr = malloc(sizeof(*awr));
-  memset(awr, 0, sizeof(*awr));
   req = malloc(sizeof(*req));
   memset(req, 0, sizeof(*req));
   req->data = server;
@@ -147,21 +110,8 @@ void net_send_frames_loop(uv_idle_t *handle) {
   // array
   free(buf);
 
-  awr->buffer = &wrbuf;
-  awr->req = req;
-  awr->handle = (uv_stream_t *)server->tcp_client;
-  awr->s = frame->is_keyframe;
-
-  // uv_async_init(server->loop, &async, async_callback);
-
-  uv_write(awr->req, awr->handle, awr->buffer, 1, on_write_callback);
-
-  free(awr);
-
-  // async.data = awr;
-  // TODO: libuv will coalesce calls??????
-  // http://docs.libuv.org/en/v1.x/async.html
-  // uv_async_send(&async);
+  uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
+           on_write_callback);
 }
 
 void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
@@ -183,7 +133,7 @@ void on_read_callback(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
   struct NetServer *server = (struct NetServer *)client->data;
   if (nread < 0) {
     if (nread != UV_EOF) {
-      // printf("Read error %s\n", uv_err_name(nread));
+      printf("Read error %s\n", uv_err_name(nread));
       uv_close((uv_handle_t *)client, on_close_callback);
     }
   }
@@ -232,28 +182,6 @@ void on_new_connection(uv_stream_t *stream, int status) {
   uv_mutex_unlock(&server->mutex);
   printf("connected\n");
   uv_read_start((uv_stream_t *)client, alloc_buffer, on_read_callback);
-  uv_idle_start(&server->idle, net_send_frames_loop);
+  uv_idle_start(&server->idle, net_send_frame);
   // uv_thread_create(&server->send_loop, net_send_frames_loop, server);
-}
-
-// TODO:
-volatile int once = 0;
-
-void async_callback(uv_async_t *async) {
-  struct AsyncWriteRequest *awr = (struct AsyncWriteRequest *)async->data;
-  struct NetServer *server = (struct NetServer *)awr->handle->data;
-
-  if (once != 0)
-    return;
-  if (!server->connected)
-    return;
-
-  // TODO: use queue
-
-  printf("got async %d\n", awr->s);
-  // TODO: we crash if conn closes right here
-  uv_write(awr->req, awr->handle, awr->buffer, 1, on_write_callback);
-  printf("wrote %lu\n", awr->buffer->len);
-  free(awr);
-  // once = 1;
 }
