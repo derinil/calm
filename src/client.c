@@ -27,7 +27,6 @@ void decode_thread(void *vargs) {
   // TODO: mechanism to stop this
   while (1) {
     cframe = (struct CFrame *)dstack_pop_block(client->compressed_stack);
-    print_cframe_hash(cframe);
     decode_frame(client->decoder, cframe);
     // TODO: free(cframe);
   }

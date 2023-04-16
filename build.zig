@@ -1,7 +1,6 @@
 const std = @import("std");
 const time = std.time;
 const log = std.log;
-const enet = @import("deps/enet/build.zig");
 const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
 const libuv = @import("deps/libuv/build.zig");
@@ -60,8 +59,6 @@ pub fn build(b: *std.Build) void {
     cimgui.link(b, exe);
     exe.addIncludePath("deps/cimgui/");
     exe.addIncludePath("deps/cimgui/generator/output/");
-
-    enet.link(b, exe);
 
     _ = libuv.link(b, exe) catch unreachable;
 
