@@ -73,3 +73,7 @@
 # vscode extensions
 - clangd
 - zls
+
+# debugging
+- lldb on macos
+  - lldb ./zig-out/bin/calm -> process launch

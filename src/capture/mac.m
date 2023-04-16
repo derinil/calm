@@ -135,6 +135,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
   uint8_t *buffer = NULL;
   CMBlockBufferGetDataPointer(block_buffer, 0, NULL, &block_buffer_length,
                               (char **)&buffer);
+// [ps_data appendBytes:startCode length:startCodeLength];
 
   frame->frame.frame = buffer;
   frame->frame.frame_length = block_buffer_length;

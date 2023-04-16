@@ -41,6 +41,7 @@ void decode_thread(void *vargs) {
     printf("popping\n");
     cframe = (struct CFrame *)dstack_pop_block(client->compressed_stack);
     printf("popped\n");
+    print_cframe_hash(cframe);
     decode_frame(client->decoder, cframe);
     // TODO: free(cframe);
   }

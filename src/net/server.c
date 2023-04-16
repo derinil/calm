@@ -87,8 +87,6 @@ void net_send_frame(uv_idle_t *handle) {
   once = 1;
 #endif
 
-  printf("looping\n");
-
   if (!server->connected)
     return;
 
@@ -122,10 +120,9 @@ void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
 void on_write_callback(uv_write_t *req, int status) {
   struct NetServer *server = (struct NetServer *)req->data;
   if (status) {
-    // printf("Write error %s\n", uv_strerror(status));
+    printf("Write error %s\n", uv_strerror(status));
     uv_close((uv_handle_t *)server->tcp_client, on_close_callback);
   }
-  printf("sent %lu\n", req->bufs->len);
   free(req);
 }
 
