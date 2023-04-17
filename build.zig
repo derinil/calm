@@ -24,12 +24,21 @@ var macFiles = [_][]const u8{
     "src/decode/mac.m",
 };
 
+var nvidiaFiles = [_][]const u8{
+    "src/capture/nvenc.c",
+    "src/decode/nvenc.c",
+};
+
 var sourceFolders = [_][]const u8{
     basePath("/src"),
     basePath("/src/gui"),
     basePath("/src/net"),
     basePath("/src/data"),
     basePath("/deps/glad/src"),
+};
+
+var includePaths = [_][]const u8{
+    basePath("/deps/nvenc"),
 };
 
 var sourceFiles = [_][]const u8{
@@ -73,22 +82,12 @@ pub fn build(b: *std.Build) void {
 
     switch (target.getOsTag()) {
         .macos => {
-            const flags = &[_][]const u8{
-                "-Wall",
-                "-Werror",
-                "-Wextra",
-                "-static",
-                "-Wno-unused-variable",
-                "-Wno-unused-parameter",
-                "-Wno-unused-but-set-variable",
-            };
-
             for (macFrameworks) |f| {
                 exe.linkFramework(f);
             }
 
             for (macFiles) |f| {
-                exe.addCSourceFile(f, flags);
+                exe.addCSourceFile(f, defaultFlags);
             }
         },
         .windows => {
@@ -98,12 +97,22 @@ pub fn build(b: *std.Build) void {
         else => unreachable,
     }
 
+    if (target.getOsTag() == .windows or target.getOsTag() == .linux) {
+        for (nvidiaFiles) |f| {
+            exe.addCSourceFile(f, defaultFlags);
+        }
+    }
+
     for (sourceFolders) |f| {
         var sf = getSourcesInDir(b.allocator, f) catch unreachable;
 
         for (sf) |s| {
             exe.addCSourceFile(s, defaultFlags);
         }
+    }
+
+    for (includePaths) |f| {
+        exe.addIncludePath(f);
     }
 
     for (sourceFiles) |s| {
@@ -133,6 +142,23 @@ fn getSourcesInDir(allocator: std.mem.Allocator, dir_path: []const u8) ![][]cons
     while (try iter.next()) |e| {
         if (e.kind != .File) continue;
         if (!std.mem.endsWith(u8, e.name, ".cpp") and !std.mem.endsWith(u8, e.name, ".c")) continue;
+        var fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
+        try files.append(fp);
+    }
+
+    return files.items;
+}
+
+fn getHeadersInDir(allocator: std.mem.Allocator, dir_path: []const u8) ![][]const u8 {
+    var files = std.ArrayList([]const u8).init(allocator);
+
+    var dir: std.fs.IterableDir = try std.fs.openIterableDirAbsolute(dir_path, .{});
+    defer dir.close();
+    var iter = dir.iterate();
+
+    while (try iter.next()) |e| {
+        if (e.kind != .File) continue;
+        if (!std.mem.endsWith(u8, e.name, ".h")) continue;
         var fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
         try files.append(fp);
     }

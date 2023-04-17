@@ -1,3 +1,7 @@
+# capture
+
+- https://developer.nvidia.com/capture-sdk
+
 # h264 reading
 
 - https://shopdelta.eu/h-264-image-coding-standard_l2_aid734.html
@@ -14,6 +18,7 @@
 - https://stackoverflow.com/questions/25738680/how-to-parse-access-unit-in-h-264
 - https://devstreaming-cdn.apple.com/videos/wwdc/2014/513xxhfudagscto/513/513_direct_access_to_media_encoding_and_decoding.pdf
 - https://stackoverflow.com/questions/47217998/h264-encoding-and-decoding-using-videotoolbox
+- https://github.com/NVIDIA/video-sdk-samples/tree/master/nvEncDXGIOutputDuplicationSample
 
 # h264 decoding
 
