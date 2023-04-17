@@ -1,9 +1,6 @@
 [submodule "deps/cimgui"]
 	path = deps/cimgui
 	url = https://github.com/derinil/cimgui.git
-[submodule "deps/enet"]
-	path = deps/enet
-	url = https://github.com/derinil/enet.git
 [submodule "deps/libuv"]
 	path = deps/libuv
 	url = https://github.com/derinil/zig-libuv.git
