@@ -134,6 +134,9 @@ void compressed_frame_callback(void *output_callback_ref_con,
 
   block_buffer = CMSampleBufferGetDataBuffer(sample_buffer);
 
+  // TODO: multiple nalu units in blockbuffer
+  // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
+
   // Get a pointer to the raw AVCC NAL unit data in the sample buffer
   size_t block_buffer_length;
   uint8_t *buffer = NULL;
@@ -259,8 +262,7 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
     kCFBooleanTrue,
     kVTProfileLevel_H264_Baseline_AutoLevel,
     // TODO: CAVLC requires considerably less processing to decode than CABAC
-    // kVTH264EntropyMode_CABAC,
-    kVTH264EntropyMode_CAVLC,
+    kVTH264EntropyMode_CABAC,
     @120,
     kCFBooleanTrue,
     kVTAlphaChannelMode_StraightAlpha,

@@ -68,6 +68,10 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
     }
   }
 
+  for (int i = 0; i < 10; i++)
+    printf("%02X-", frame->frame[i]);
+  printf("\n");
+
   result = h264bsdDecode(decoder->hantro_decoder, frame->frame,
                          frame->frame_length, 0, &nread);
 
