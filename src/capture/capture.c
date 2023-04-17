@@ -1,8 +1,8 @@
 #include "capture.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 void print_cframe_hash(struct CFrame *frame);
 
@@ -162,4 +162,38 @@ void print_cframe_hash(struct CFrame *frame) {
       printf("%x", frame->parameter_sets[i][x]);
     printf("\n");
   }
+}
+
+struct SerializedBuffer *condense_cframe(struct CFrame *frame) {
+  uint8_t *buf;
+  uint64_t total_len = 0;
+  const uint8_t start_code[4] = {0, 0, 0, 1};
+
+  // 4 byte start codes between each nalu
+
+  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+    total_len += 4;
+    total_len += frame->parameter_sets_lengths[i];
+  }
+
+  total_len += 4;
+  total_len += frame->frame_length;
+
+  buf = calloc(total_len, sizeof(*buf));
+  if (!buf)
+    return NULL;
+
+  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+    memcpy(buf, start_code, 4);
+    memcpy(buf, frame->parameter_sets[i], frame->parameter_sets_lengths[i]);
+  }
+
+  memcpy(buf, start_code, 4);
+  memcpy(buf, frame->frame, frame->frame_length);
+
+  struct SerializedBuffer *serbuf = calloc(1,sizeof(*serbuf));
+  serbuf->buffer = buf;
+  serbuf->length = total_len;
+  
+  return serbuf;
 }

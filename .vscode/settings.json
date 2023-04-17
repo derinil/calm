@@ -5,7 +5,8 @@
         "-I${workspaceFolder}/deps/glad/include",
         "-I${workspaceFolder}/deps/cimgui",
         "-I${workspaceFolder}/deps/cimgui/generator/output",
-        "-I${workspaceFolder}/deps/nvenc"
+        "-I${workspaceFolder}/deps/nvenc",
+        "-I${workspaceFolder}/deps/h264bsd/src"
     ],
     "editor.tabSize": 2
 }

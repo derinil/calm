@@ -1,6 +1,5 @@
 #include "decode.h"
 #include <stdlib.h>
-#include "cuviddec.h"
 
 struct Decoder *setup_decoder(DecompressedFrameHandler handler) { return NULL; }
 

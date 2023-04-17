@@ -82,7 +82,7 @@
 # debugging
 - lldb on macos
 ```
-lldb ./zig-out/bin/calm
+sudo lldb ./zig-out/bin/calm
 process launch
 kill
 gui
@@ -91,3 +91,10 @@ next // one function
 breakpoint set --file src/decode/mac.m --line 188
 breakpoint delete 1
 ```
+- codesign to avoid permission prompts
+```
+codesign -s - ./zig-out/bin/calm
+```
+  - https://stackoverflow.com/questions/59197213/macos-catalina-screen-recording-permission
+  - https://www.simplified.guide/macos/keychain-cert-code-signing-create
+  - https://comodosslstore.com/resources/macos-codesign-how-do-i-sign-a-file-with-code-signing-certificate-in-macos/

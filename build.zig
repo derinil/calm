@@ -4,6 +4,14 @@ const log = std.log;
 const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
 const libuv = @import("deps/libuv/build.zig");
+const h264bsd = @import("deps/h264bsd/build.zig");
+
+const Decoders = enum {
+    hardware,
+    software,
+};
+
+const decoder: Decoders = .software;
 
 var macFrameworks = [_][]const u8{
     "Foundation",
@@ -21,7 +29,6 @@ var macFrameworks = [_][]const u8{
 
 var macFiles = [_][]const u8{
     "src/capture/mac.m",
-    "src/decode/mac.m",
 };
 
 var nvidiaFiles = [_][]const u8{
@@ -70,6 +77,8 @@ pub fn build(b: *std.Build) void {
 
     _ = libuv.link(b, exe) catch unreachable;
 
+    _ = h264bsd.link(b, exe) catch unreachable;
+
     const defaultFlags = &[_][]const u8{
         "-Wall",
         "-Werror",
@@ -88,6 +97,12 @@ pub fn build(b: *std.Build) void {
 
             for (macFiles) |f| {
                 exe.addCSourceFile(f, defaultFlags);
+            }
+
+            if (decoder == .software) {
+                exe.addCSourceFile("src/decode/software.c", defaultFlags);
+            } else {
+                exe.addCSourceFile("src/decode/mac.m", defaultFlags);
             }
         },
         .windows => {

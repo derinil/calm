@@ -4,3 +4,6 @@
 [submodule "deps/libuv"]
 	path = deps/libuv
 	url = https://github.com/derinil/zig-libuv.git
+[submodule "deps/h264bsd"]
+	path = deps/h264bsd
+	url = https://github.com/derinil/h264bsd.git
