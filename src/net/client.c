@@ -89,7 +89,6 @@ void on_close_cb(uv_handle_t *handle) {
   printf("connection closed\n")
 #endif
   free(handle);
-  // TODO: get rid of pthread
 }
 
 void on_write(uv_write_t *req, int status) {
@@ -109,7 +108,6 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
       printf("Read error %d %s\n", client->read_state->state,
              uv_err_name(nread));
       // uv_close((uv_handle_t *)stream, on_close_cb);
-      // pthread_exit(NULL);
     }
   }
 
@@ -167,11 +165,9 @@ void on_connect(uv_connect_t *connection_req, int status) {
   struct NetClient *client = (struct NetClient *)connection_req->data;
 
   if (status < 0)
-    pthread_exit(&status);
-
-#if 1
-  printf("connected.\n");
-#endif
+    printf("conn failed %d\n", status);
+  else
+    printf("connected.\n");
 
   client->tcp_stream = connection_req->handle;
   client->tcp_stream->data = client;

@@ -4,7 +4,6 @@
 #include "../capture/capture.h"
 #include "../data/stack.h"
 #include "uv.h"
-#include "uv/unix.h"
 #include <stddef.h>
 #include <stdint.h>
 
