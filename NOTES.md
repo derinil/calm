@@ -68,7 +68,6 @@
 # todo
 
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
-- client crashes after connecting
 - cursor only seen when first starting
 
 # vscode extensions

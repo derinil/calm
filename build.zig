@@ -62,39 +62,58 @@ pub fn build(b: *std.Build) void {
 
     _ = libuv.link(b, exe) catch unreachable;
 
-    if (target.getOsTag().isDarwin()) {
-        const flags = &[_][]const u8{
-            "-Wall",
-            "-Werror",
-            "-Wextra",
-            // "-static",
-            // TODO: add static
-            // TODO: Remove these
-            "-Wno-unused-variable",
-            "-Wno-unused-parameter",
-            "-Wno-unused-but-set-variable",
-        };
+    const defaultFlags = &[_][]const u8{
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-static",
+        // TODO: add static
+        // TODO: Remove these
+        "-Wno-unused-variable",
+        "-Wno-unused-parameter",
+        "-Wno-unused-but-set-variable",
+    };
 
-        for (macFrameworks) |f| {
-            exe.linkFramework(f);
-        }
+    switch (target.getOsTag()) {
+        .macos => {
+            const flags = &[_][]const u8{
+                "-Wall",
+                "-Werror",
+                "-Wextra",
+                "-static",
+                // TODO: add static
+                // TODO: Remove these
+                "-Wno-unused-variable",
+                "-Wno-unused-parameter",
+                "-Wno-unused-but-set-variable",
+            };
 
-        for (macFiles) |f| {
-            exe.addCSourceFile(f, flags);
-        }
-    } else unreachable;
+            for (macFrameworks) |f| {
+                exe.linkFramework(f);
+            }
+
+            for (macFiles) |f| {
+                exe.addCSourceFile(f, flags);
+            }
+        },
+        .windows => {
+            exe.linkSystemLibraryName("opengl32");
+        },
+        .linux => {},
+        else => unreachable,
+    }
 
     for (sourceFolders) |f| {
         var sf = getSourcesInDir(b.allocator, f) catch unreachable;
 
         for (sf) |s| {
-            exe.addCSourceFile(s, &.{});
+            exe.addCSourceFile(s, defaultFlags);
         }
     }
 
     for (sourceFiles) |s| {
-            exe.addCSourceFile(s, &.{});
-        }
+        exe.addCSourceFile(s, defaultFlags);
+    }
 
     b.installArtifact(exe);
 
