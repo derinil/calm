@@ -261,6 +261,8 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
 
   CFRelease(compression_opts);
 
+  // TODO: use ScreenCaptureKit
+
   dispatch_queue_t queue = dispatch_queue_create("display_stream_dispatch",
                                                  DISPATCH_QUEUE_CONCURRENT);
 
@@ -276,7 +278,6 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   CFTypeRef keys[] = {
       kCGDisplayStreamMinimumFrameTime,
       kCGDisplayStreamQueueDepth,
-      kCGDisplayStreamShowCursor,
   };
   CFTypeRef values[] = {
     // Supposedly the default value for kCGDisplayStreamMinimumFrameTime
@@ -284,7 +285,6 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
     // behaviour.
     @0,
     @5,
-    @true,
   };
 
   CFDictionaryRef opts =
