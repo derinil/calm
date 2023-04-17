@@ -42,7 +42,6 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "calm",
-        .root_source_file = .{ .path = "src/stack_tracer.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -67,8 +66,6 @@ pub fn build(b: *std.Build) void {
         "-Werror",
         "-Wextra",
         "-static",
-        // TODO: add static
-        // TODO: Remove these
         "-Wno-unused-variable",
         "-Wno-unused-parameter",
         "-Wno-unused-but-set-variable",
@@ -81,8 +78,6 @@ pub fn build(b: *std.Build) void {
                 "-Werror",
                 "-Wextra",
                 "-static",
-                // TODO: add static
-                // TODO: Remove these
                 "-Wno-unused-variable",
                 "-Wno-unused-parameter",
                 "-Wno-unused-but-set-variable",
@@ -137,7 +132,7 @@ fn getSourcesInDir(allocator: std.mem.Allocator, dir_path: []const u8) ![][]cons
 
     while (try iter.next()) |e| {
         if (e.kind != .File) continue;
-        if (!std.mem.endsWith(u8, e.name, ".cpp") and !std.mem.endsWith(u8, e.name, ".c") and !std.mem.endsWith(u8, e.name, ".h")) continue;
+        if (!std.mem.endsWith(u8, e.name, ".cpp") and !std.mem.endsWith(u8, e.name, ".c")) continue;
         var fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
         try files.append(fp);
     }
