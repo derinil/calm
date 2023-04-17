@@ -2,7 +2,6 @@
 #include "../capture/capture.h"
 #include "../data/stack.h"
 #include "uv.h"
-#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
