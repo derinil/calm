@@ -68,26 +68,8 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
     }
   }
 
-  // printf("yoo\n");
-
-  // for (int i = 0; i < 10; i++)
-  //   printf("%x",frame->frame[i]);
-  // printf("\n");
-
-  // uint8_t *buf = calloc(frame->frame_length + 4, sizeof(*buf));
-  // uint8_t sc[4] = {0x0, 0x0, 0x0, 0x1};
-  // memcpy(buf, sc, 4);
-  // memcpy(buf+4, frame->frame, frame->frame_length);
-
-#if 0
-printf("\nlolbuf");
-  for (int i = 0; i < 10; i++)
-    printf("%x-", buf[i]);
-  printf("\n");
-#endif
-
-  result = h264bsdDecode(decoder->hantro_decoder, frame->frame, frame->frame_length,
-                         0, &nread);
+  result = h264bsdDecode(decoder->hantro_decoder, frame->frame,
+                         frame->frame_length, 0, &nread);
 
   switch (result) {
   case H264BSD_PIC_RDY:
