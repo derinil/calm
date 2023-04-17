@@ -44,7 +44,7 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   int err;
   uint32_t nread;
   uint32_t result;
-  uint32_t ta; // throwaway int
+  uint32_t ta; /* THROWAWAY */
   uint32_t *decoded;
   struct SoftwareDecoder *decoder = (struct SoftwareDecoder *)subdec;
 
@@ -56,56 +56,43 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
     h264bsdFree(decoder->hantro_decoder);
     decoder->hantro_decoder = h264bsdAlloc();
     h264bsdInit(decoder->hantro_decoder, HANTRO_FALSE);
-  }
 
-  struct SerializedBuffer *condensed = condense_cframe(frame);
-  uint8_t *buffer = condensed->buffer;
-  uint64_t total_len = condensed->length;
-
-  while (total_len > 0) {
-    result =
-        h264bsdDecode(decoder->hantro_decoder, buffer, total_len, 0, &nread);
-    switch (result) {
-    case H264BSD_PIC_RDY:
-      decoded =
-          h264bsdNextOutputPictureBGRA(decoder->hantro_decoder, &ta, &ta, &ta);
-    case H264BSD_ERROR:
-      printf("h264 error\n");
-    case H264BSD_PARAM_SET_ERROR:
-      printf("h264 param set error\n");
-    default:
-      printf("status %d\n", result);
-    }
-
-    total_len -= nread;
-    buffer += nread;
-    printf("total length %llu\n", total_len);
-  }
-
-  free(condensed->buffer);
-  free(condensed);
-
-  if (decoded == NULL)
-    return;
-
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    result = h264bsdDecode(decoder->hantro_decoder, frame->parameter_sets[i],
-                           frame->parameter_sets_lengths[i] + 4, 0, &nread);
-    if (result == H264BSD_ERROR || result == H264BSD_PARAM_SET_ERROR) {
-      printf("error decoding ps %d %d\n", result, nread);
-    } else if (result == H264BSD_RDY) {
-      printf("parsed ps\n");
+    for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+      result = h264bsdDecode(decoder->hantro_decoder, frame->parameter_sets[i],
+                             frame->parameter_sets_lengths[i], 0, &nread);
+      if (result == H264BSD_ERROR || result == H264BSD_PARAM_SET_ERROR) {
+        printf("error decoding ps %d %d\n", result, nread);
+      } else if (result == H264BSD_RDY) {
+        printf("parsed ps\n");
+      }
     }
   }
 
-  printf("yoo\n");
+  // printf("yoo\n");
 
-  result = h264bsdDecode(decoder->hantro_decoder, frame->frame,
-                         frame->frame_length + 4, 0, &nread);
+  // for (int i = 0; i < 10; i++)
+  //   printf("%x",frame->frame[i]);
+  // printf("\n");
+
+  // uint8_t *buf = calloc(frame->frame_length + 4, sizeof(*buf));
+  // uint8_t sc[4] = {0x0, 0x0, 0x0, 0x1};
+  // memcpy(buf, sc, 4);
+  // memcpy(buf+4, frame->frame, frame->frame_length);
+
+#if 0
+printf("\nlolbuf");
+  for (int i = 0; i < 10; i++)
+    printf("%x-", buf[i]);
+  printf("\n");
+#endif
+
+  result = h264bsdDecode(decoder->hantro_decoder, frame->frame, frame->frame_length,
+                         0, &nread);
 
   switch (result) {
   case H264BSD_PIC_RDY:
-    decoded = h264bsdNextOutputPictureBGRA(decoder->hantro_decoder, &ta, &ta, &ta);
+    decoded =
+        h264bsdNextOutputPictureBGRA(decoder->hantro_decoder, &ta, &ta, &ta);
     break;
   case H264BSD_ERROR:
     printf("h264 error\n");

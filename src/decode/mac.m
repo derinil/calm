@@ -178,7 +178,7 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
       NULL, frame->parameter_sets_count,
       (const unsigned char *const *)frame->parameter_sets,
-      (size_t *)frame->parameter_sets_lengths, 4, &format_description);
+      (size_t *)frame->parameter_sets_lengths, frame->nalu_h_len, &format_description);
   if (status) {
     return status;
   }

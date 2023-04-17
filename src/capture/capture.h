@@ -8,6 +8,7 @@
 
 struct CFrame {
   int is_keyframe;
+  uint64_t nalu_h_len;
   uint8_t **parameter_sets;
   uint64_t parameter_sets_count;
   uint64_t *parameter_sets_lengths;

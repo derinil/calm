@@ -50,6 +50,8 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   buf_len = 0;
   // Length for buf_len itself
   buf_len += sizeof(buf_len);
+  // Length for nalu_h_len
+  buf_len += sizeof(frame->nalu_h_len);
   // Length for frame_length
   buf_len += sizeof(frame->frame_length);
   // Length for frame
@@ -72,6 +74,9 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   // Subtract the sizeof buf_len from buf_len so that buf_len is actually the
   // length of the frame
   write_uint64(buf + buf_off, buf_len - sizeof(buf_len));
+  buf_off += 8;
+
+  write_uint64(buf + buf_off, frame->nalu_h_len);
   buf_off += 8;
 
   write_uint64(buf + buf_off, frame->frame_length);
@@ -110,6 +115,9 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
   memset(frame, 0, sizeof(*frame));
 
   off = 0;
+
+  frame->nalu_h_len = read_uint64(buffer + off);
+  off += 8;
 
   frame->frame_length = read_uint64(buffer + off);
   off += 8;

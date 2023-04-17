@@ -87,7 +87,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
 #define AVG_PS_LEN 1024
 #define AVG_DAT_LEN 10 * 1024
 
-  static const size_t startCodeLength = 4;
+  // static const size_t startCodeLength = 4;
   static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
 
   // Write the SPS and PPS NAL units to the elementary stream before every
@@ -113,13 +113,17 @@ void compressed_frame_callback(void *output_callback_ref_con,
       ps_data = [NSMutableData dataWithCapacity:AVG_PS_LEN];
       const uint8_t *psp;
       size_t psp_len;
-      CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description, i, &psp,
-                                                         &psp_len, NULL, NULL);
+      int nalu_h_len;
+      // TODO: use the points to frame->frame.parameter_sets[i] instead of psp
+      // TODO: save nalu header length in cframe
+      CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+          description, i, &psp, &psp_len, NULL, &nalu_h_len);
 
       // TODO: we can use memcpy and malloc over parameter_sets instead of this
       // [ps_data appendBytes:startCode length:startCodeLength];
       [ps_data appendBytes:psp length:psp_len];
 
+      frame->frame.nalu_h_len = nalu_h_len;
       frame->datas[i] = ps_data;
       frame->frame.parameter_sets[i] = ps_data.mutableBytes;
       frame->frame.parameter_sets_lengths[i] = ps_data.length;
@@ -135,10 +139,34 @@ void compressed_frame_callback(void *output_callback_ref_con,
   uint8_t *buffer = NULL;
   CMBlockBufferGetDataPointer(block_buffer, 0, NULL, &block_buffer_length,
                               (char **)&buffer);
-// [ps_data appendBytes:startCode length:startCodeLength];
+  // [ps_data appendBytes:startCode length:startCodeLength];
 
+#if 0
+  frame->frame.frame =
+      calloc(block_buffer_length + 4, sizeof(*frame->frame.frame));
+  memcpy(frame->frame.frame, startCode, 4);
+  memcpy(frame->frame.frame+4, block_buffer, block_buffer_length);
+#elif 0
+  frame->frame.frame = buffer;
+#else
   frame->frame.frame = buffer;
   frame->frame.frame_length = block_buffer_length;
+#if 0
+  if (buffer[0] == 0 && buffer[0] == 0 && buffer[0] == 0 && buffer[0] == 0x01) {
+    frame->frame.frame = buffer + 4;
+    frame->frame.frame_length -= 4;
+  } else if (buffer[0] == 0 && buffer[0] == 0 && buffer[0] == 0x01) {
+    frame->frame.frame = buffer + 3;
+    frame->frame.frame_length -= 3;
+  }
+#endif
+#endif
+
+#if 0
+  for (int i = 0; i < 10; i++)
+    printf("%x-", frame->frame.frame[i]);
+  printf("\n");
+#endif
 
   CFRetain(block_buffer);
   frame->block_buffer = block_buffer;
@@ -220,31 +248,29 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
       kVTCompressionPropertyKey_ProfileLevel,
       kVTCompressionPropertyKey_H264EntropyMode,
       kVTCompressionPropertyKey_ExpectedFrameRate,
-      kVTCompressionPropertyKey_HDRMetadataInsertionMode,
       kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder,
       kVTCompressionPropertyKey_AlphaChannelMode,
       kVTCompressionPropertyKey_PrioritizeEncodingSpeedOverQuality,
       kVTCompressionPropertyKey_EnableLTR,
-      kVTCompressionPropertyKey_PreserveDynamicHDRMetadata,
       kVTVideoEncoderSpecification_EnableLowLatencyRateControl,
   };
 
   CFTypeRef compression_values[] = {
     kCFBooleanTrue,
     kVTProfileLevel_H264_Baseline_AutoLevel,
-    kVTH264EntropyMode_CABAC,
+    // TODO: CAVLC requires considerably less processing to decode than CABAC
+    // kVTH264EntropyMode_CABAC,
+    kVTH264EntropyMode_CAVLC,
     @120,
-    kVTHDRMetadataInsertionMode_Auto,
     kCFBooleanTrue,
     kVTAlphaChannelMode_StraightAlpha,
-    kCFBooleanTrue,
     kCFBooleanTrue,
     kCFBooleanTrue,
     kCFBooleanTrue,
   };
 
   CFDictionaryRef compression_opts = CFDictionaryCreate(
-      NULL, compression_keys, compression_values, 11,
+      NULL, compression_keys, compression_values, 9,
       &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
   VTCompressionSessionRef compression_session;
