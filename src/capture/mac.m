@@ -151,9 +151,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
     uint32_t nalu_len = 0;
     memcpy(&nalu_len, buffer + buf_off, avcc_h_len);
     // Convert the length value from Big-endian to Little-endian
-    // Arbitrary length, normal nalus wont be longer than this
-    if (nalu_len > 1000000)
-      nalu_len = CFSwapInt32BigToHost(nalu_len);
+    nalu_len = CFSwapInt32BigToHost(nalu_len);
 
     frame->frame.nalus =
         realloc(frame->frame.nalus,
@@ -257,13 +255,14 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
       kVTVideoEncoderSpecification_EnableLowLatencyRateControl,
   };
 
+  // TODO: on the fly configuration of these
+  // kVTH264EntropyMode_CAVLC and
+  // kVTProfileLevel_H264_ConstrainedBaseline_AutoLevel
+
   CFTypeRef compression_values[] = {
     kCFBooleanTrue,
-    // kVTProfileLevel_H264_Baseline_AutoLevel,
-    kVTProfileLevel_H264_ConstrainedBaseline_AutoLevel,
-    // TODO: CAVLC requires considerably less processing to decode than CABAC
-    // kVTH264EntropyMode_CABAC,
-    kVTH264EntropyMode_CAVLC,
+    kVTProfileLevel_H264_Baseline_AutoLevel,
+    kVTH264EntropyMode_CABAC,
     @120,
     kCFBooleanTrue,
     kVTAlphaChannelMode_StraightAlpha,

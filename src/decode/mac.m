@@ -68,9 +68,7 @@ uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len) {
     return NULL;
 
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
-    swapped = frame->nalus_lengths[i] < 1000000
-                  ? CFSwapInt32HostToBig(frame->nalus_lengths[i])
-                  : frame->nalus_lengths[i];
+    swapped = CFSwapInt32HostToBig(frame->nalus_lengths[i]);
     write_uint32(buf, swapped);
     memcpy(buf + 4, frame->nalus[i], frame->nalus_lengths[i]);
   }
@@ -194,6 +192,7 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   sample_buffer =
       create_sample_buffer(decoder->format_description, frame, &condensed_ptr);
   if (!sample_buffer || sample_buffer == NULL) {
+    free(condensed_ptr);
     printf("create_sample_buffer failed\n");
     return;
   }
@@ -206,7 +205,9 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
 
   VTDecompressionSessionDecodeFrame(decoder->decompression_session,
                                     sample_buffer, decode_flags, ctx, NULL);
-  CMSampleBufferInvalidate(sample_buffer);
+
+  // TODO: dont think we need this, might even be a hindrance
+  // CMSampleBufferInvalidate(sample_buffer);
   CFRelease(sample_buffer);
 }
 

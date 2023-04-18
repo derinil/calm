@@ -120,11 +120,8 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
 
   frame->parameter_sets_lengths = malloc(
       sizeof(*frame->parameter_sets_lengths) * frame->parameter_sets_count);
-  memset(frame->parameter_sets_lengths, 0,
-         sizeof(*frame->parameter_sets_lengths));
   frame->parameter_sets =
       malloc(sizeof(*frame->parameter_sets) * frame->parameter_sets_count);
-  memset(frame->parameter_sets, 0, sizeof(*frame->parameter_sets));
 
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
     frame->parameter_sets_lengths[i] = read_uint64(buffer + off);
@@ -139,6 +136,10 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
 
   frame->nalus_count = read_uint64(buffer + off);
   off += 8;
+
+  frame->nalus_lengths =
+      malloc(sizeof(*frame->nalus_lengths) * frame->nalus_count);
+  frame->nalus = malloc(sizeof(*frame->nalus) * frame->nalus_count);
 
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
     frame->nalus_lengths[i] = read_uint64(buffer + off);

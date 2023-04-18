@@ -5,20 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
-https://github.com/oneam/h264bsd
-Currently, the process of decoding modifies the input data. This has tripped me
-a few times in the past so others should be aware of it.
-
-The decoder only works nicely if it has a single consistent stream to deal with.
-If you want to change the width/height or restart the stream with a new access
-unit delimiter, it's better to shutdown and init a new decoder.
-*/
-
 struct SoftwareDecoder {
   struct Decoder decoder;
   storage_t *hantro_decoder;
 };
+
+uint8_t *split_u32(uint32_t *buf, uint64_t len);
 
 struct Decoder *setup_decoder(DecompressedFrameHandler handler) {
   int err;
@@ -29,14 +21,6 @@ struct Decoder *setup_decoder(DecompressedFrameHandler handler) {
   if (err)
     return NULL;
   return &decoder->decoder;
-}
-
-uint8_t *split_u32(uint32_t *buf, uint64_t len) {
-  uint8_t *split = calloc(len * 4, sizeof(*split));
-  for (uint64_t i = 0; i < len; i++)
-    split[i] = buf[i] & 0xF000, split[i + 1] = buf[i] & 0x0F00,
-    split[i + 2] = buf[i] & 0x00F0, split[i + 3] = buf[i] & 0x000F;
-  return split;
 }
 
 volatile int frames = 0;
@@ -114,10 +98,15 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
 
   printf("finished one frame\n");
 
+#if 1
   frames++;
   if (frames == 2)
     exit(0);
   else
+    return;
+#endif
+
+  if (!decoded)
     return;
 
   struct DFrame *dframe = calloc(1, sizeof(*dframe));
@@ -140,4 +129,12 @@ int stop_decoder(struct Decoder *subdec) {
 void release_dframe(struct DFrame *frame) {
   free(frame->data);
   free(frame);
+}
+
+uint8_t *split_u32(uint32_t *buf, uint64_t len) {
+  uint8_t *split = calloc(len * 4, sizeof(*split));
+  for (uint64_t i = 0; i < len; i++)
+    split[i] = buf[i] & 0xF000, split[i + 1] = buf[i] & 0x0F00,
+    split[i + 2] = buf[i] & 0x00F0, split[i + 3] = buf[i] & 0x000F;
+  return split;
 }

@@ -6,7 +6,8 @@
         "-I${workspaceFolder}/deps/cimgui",
         "-I${workspaceFolder}/deps/cimgui/generator/output",
         "-I${workspaceFolder}/deps/nvenc",
-        "-I${workspaceFolder}/deps/h264bsd/src"
+        "-I${workspaceFolder}/deps/h264bsd/src",
+        "-I${workspaceFolder}/deps/edge264"
     ],
     "editor.tabSize": 2
 }

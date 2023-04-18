@@ -6,6 +6,7 @@
 
 // We conditionally compile the implementations based on the platform.
 
+// TODO: combine ps and nalus all into one array
 struct CFrame {
   int is_keyframe;
   uint64_t nalu_h_len;
