@@ -12,8 +12,9 @@ struct CFrame {
   uint8_t **parameter_sets;
   uint64_t parameter_sets_count;
   uint64_t *parameter_sets_lengths;
-  uint8_t *frame;
-  uint64_t frame_length;
+  uint8_t **nalus;
+  uint64_t nalus_count;
+  uint64_t *nalus_lengths;
 };
 
 // TODO: use uint8_t over char
@@ -49,7 +50,6 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame);
 void release_serbuf_cframe(struct SerializedBuffer *buffer);
 uint64_t read_uint64(uint8_t *buf);
 struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length);
-void print_cframe_hash(struct CFrame *frame);
-struct SerializedBuffer *condense_cframe(struct CFrame *frame);
+uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len);
 
 #endif

@@ -1,5 +1,6 @@
 #include "../capture/capture.h"
 #include "decode.h"
+#include <CoreFoundation/CoreFoundation.h>
 #define COREVIDEO_SILENCE_GL_DEPRECATION
 #include <AVFoundation/AVFoundation.h>
 #include <CoreGraphics/CoreGraphics.h>
@@ -31,6 +32,53 @@ struct MacDFrame {
   CVImageBufferRef imageBuffer;
 };
 
+struct MacDecodeContext {
+  struct MacDecoder *decoder;
+  uint8_t *condensed;
+};
+
+union USplitter {
+  uint32_t ull;
+  uint8_t bs[4];
+};
+
+void write_uint32(uint8_t *buf, uint32_t u) {
+  union USplitter split;
+  split.ull = u;
+  memcpy(buf, split.bs, 4);
+}
+
+uint32_t read_uint32(uint8_t *buf) {
+  union USplitter split;
+  memcpy(split.bs, buf, 4);
+  return split.ull;
+}
+
+uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len) {
+  uint8_t *buf = NULL;
+  uint32_t swapped = 0;
+  uint64_t total_len = 0;
+  static const int avcc_h_len = 4;
+
+  for (uint64_t i = 0; i < frame->nalus_count; i++)
+    total_len += avcc_h_len + frame->nalus_lengths[i];
+
+  buf = malloc(total_len * sizeof(*buf));
+  if (!buf)
+    return NULL;
+
+  for (uint64_t i = 0; i < frame->nalus_count; i++) {
+    swapped = frame->nalus_lengths[i] < 1000000
+                  ? CFSwapInt32HostToBig(frame->nalus_lengths[i])
+                  : frame->nalus_lengths[i];
+    write_uint32(buf, swapped);
+    memcpy(buf + 4, frame->nalus[i], frame->nalus_lengths[i]);
+  }
+
+  *len = total_len;
+  return buf;
+}
+
 void release_dframe(struct DFrame *frame) {
   struct MacDFrame *mcf = (struct MacDFrame *)frame;
   // printf("freeing data\n");
@@ -46,9 +94,13 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
                                      CVImageBufferRef imageBuffer,
                                      CMTime presentationTimeStamp,
                                      CMTime presentationDuration) {
-  struct MacDecoder *this = (struct MacDecoder *)sourceFrameRefCon;
-  if (!this)
+  struct MacDecodeContext *ctx = (struct MacDecodeContext *)sourceFrameRefCon;
+  struct MacDecoder *decoder = (struct MacDecoder *)ctx->decoder;
+  if (!decoder)
     return;
+
+  free(ctx->condensed);
+  free(ctx);
 
   struct MacDFrame *frame = malloc(sizeof(*frame));
   if (!frame)
@@ -83,19 +135,25 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   frame->frame.data = buf;
   frame->frame.data_length = len;
 
-  this->decoder.decompressed_frame_handler(&frame->frame);
+  decoder->decoder.decompressed_frame_handler(&frame->frame);
 }
 
 CMSampleBufferRef
 create_sample_buffer(CMFormatDescriptionRef format_description,
-                     struct CFrame *frame) {
+                     struct CFrame *frame, uint8_t **condensed_ptr) {
   OSStatus status;
   CMBlockBufferRef block_buf = NULL;
   CMSampleBufferRef sample_buf = NULL;
 
-  status = CMBlockBufferCreateWithMemoryBlock(
-      NULL, frame->frame, frame->frame_length, NULL, NULL, 0,
-      frame->frame_length, 0, &block_buf);
+  uint64_t condensed_len;
+  uint8_t *condensed = condense_nalus(frame, &condensed_len);
+  if (!condensed)
+    return NULL;
+  *condensed_ptr = condensed;
+
+  status =
+      CMBlockBufferCreateWithMemoryBlock(NULL, condensed, condensed_len, NULL,
+                                         NULL, 0, condensed_len, 0, &block_buf);
   if (status)
     goto end;
 
@@ -117,21 +175,24 @@ end:
   return NULL;
 }
 
-void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
+void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   int err;
   OSStatus status;
+  uint8_t *condensed_ptr;
   CMSampleBufferRef sample_buffer;
-  struct MacDecoder *this = (struct MacDecoder *)decoder;
+  struct MacDecoder *decoder = (struct MacDecoder *)subdec;
+  struct MacDecodeContext *ctx = malloc(sizeof(*ctx));
 
   if (frame->is_keyframe) {
-    err = start_decoder(decoder, frame);
+    err = start_decoder(subdec, frame);
     if (err) {
       printf("start_decoder failed with %d\n", err);
       return;
     }
   }
 
-  sample_buffer = create_sample_buffer(this->format_description, frame);
+  sample_buffer =
+      create_sample_buffer(decoder->format_description, frame, &condensed_ptr);
   if (!sample_buffer || sample_buffer == NULL) {
     printf("create_sample_buffer failed\n");
     return;
@@ -139,15 +200,12 @@ void decode_frame(struct Decoder *decoder, struct CFrame *frame) {
 
   VTDecodeFrameFlags decode_flags =
       kVTDecodeFrame_EnableAsynchronousDecompression;
-#if 0
-  status = VTDecompressionSessionDecodeFrame(
-      this->decompression_session, sample_buffer, decode_flags, this, NULL);
-  if (status)
-    printf("decodeframe failed with %d\n", status);
-#else
-  VTDecompressionSessionDecodeFrame(this->decompression_session, sample_buffer,
-                                    decode_flags, this, NULL);
-#endif
+
+  ctx->decoder = decoder;
+  ctx->condensed = condensed_ptr;
+
+  VTDecompressionSessionDecodeFrame(decoder->decompression_session,
+                                    sample_buffer, decode_flags, ctx, NULL);
   CMSampleBufferInvalidate(sample_buffer);
   CFRelease(sample_buffer);
 }
@@ -178,7 +236,8 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
       NULL, frame->parameter_sets_count,
       (const unsigned char *const *)frame->parameter_sets,
-      (size_t *)frame->parameter_sets_lengths, frame->nalu_h_len, &format_description);
+      (size_t *)frame->parameter_sets_lengths, frame->nalu_h_len,
+      &format_description);
   if (status) {
     return status;
   }

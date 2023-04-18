@@ -138,38 +138,37 @@ void compressed_frame_callback(void *output_callback_ref_con,
   // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
 
   // Get a pointer to the raw AVCC NAL unit data in the sample buffer
-  size_t block_buffer_length;
   uint8_t *buffer = NULL;
+  size_t block_buffer_length;
   CMBlockBufferGetDataPointer(block_buffer, 0, NULL, &block_buffer_length,
                               (char **)&buffer);
-  // [ps_data appendBytes:startCode length:startCodeLength];
 
-#if 0
-  frame->frame.frame =
-      calloc(block_buffer_length + 4, sizeof(*frame->frame.frame));
-  memcpy(frame->frame.frame, startCode, 4);
-  memcpy(frame->frame.frame+4, block_buffer, block_buffer_length);
-#elif 0
-  frame->frame.frame = buffer;
-#else
-  frame->frame.frame = buffer;
-  frame->frame.frame_length = block_buffer_length;
-#if 0
-  if (buffer[0] == 0 && buffer[0] == 0 && buffer[0] == 0 && buffer[0] == 0x01) {
-    frame->frame.frame = buffer + 4;
-    frame->frame.frame_length -= 4;
-  } else if (buffer[0] == 0 && buffer[0] == 0 && buffer[0] == 0x01) {
-    frame->frame.frame = buffer + 3;
-    frame->frame.frame_length -= 3;
+  uint64_t buf_off = 0;
+  static const uint64_t avcc_h_len = 4;
+
+  while (buf_off < block_buffer_length - avcc_h_len) {
+    // Read the NAL unit length
+    uint32_t nalu_len = 0;
+    memcpy(&nalu_len, buffer + buf_off, avcc_h_len);
+    // Convert the length value from Big-endian to Little-endian
+    // Arbitrary length, normal nalus wont be longer than this
+    if (nalu_len > 1000000)
+      nalu_len = CFSwapInt32BigToHost(nalu_len);
+
+    frame->frame.nalus =
+        realloc(frame->frame.nalus,
+                (frame->frame.nalus_count + 1) * sizeof(*frame->frame.nalus));
+    frame->frame.nalus_lengths = realloc(
+        frame->frame.nalus_lengths,
+        (frame->frame.nalus_count + 1) * sizeof(*frame->frame.nalus_lengths));
+    frame->frame.nalus[frame->frame.nalus_count] =
+        buffer + buf_off + avcc_h_len;
+    frame->frame.nalus_lengths[frame->frame.nalus_count] = nalu_len;
+
+    // Move to the next NAL unit in the block buffer
+    frame->frame.nalus_count++;
+    buf_off += avcc_h_len + nalu_len;
   }
-#endif
-#endif
-
-#if 0
-  for (int i = 0; i < 10; i++)
-    printf("%x-", frame->frame.frame[i]);
-  printf("\n");
-#endif
 
   CFRetain(block_buffer);
   frame->block_buffer = block_buffer;

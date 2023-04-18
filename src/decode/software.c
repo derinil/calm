@@ -62,18 +62,17 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
                              frame->parameter_sets_lengths[i], 0, &nread);
       if (result == H264BSD_ERROR || result == H264BSD_PARAM_SET_ERROR) {
         printf("error decoding ps %d %d\n", result, nread);
-      } else if (result == H264BSD_RDY) {
-        printf("parsed ps\n");
       }
     }
   }
 
-  for (int i = 0; i < 10; i++)
-    printf("%02X-", frame->frame[i]);
-  printf("\n");
-
-  result = h264bsdDecode(decoder->hantro_decoder, frame->frame,
-                         frame->frame_length, 0, &nread);
+  for (uint64_t i = 0; i < frame->nalus_count; i++) {
+    result = h264bsdDecode(decoder->hantro_decoder, frame->nalus[i],
+                           frame->nalus_lengths[i], 0, &nread);
+    if (result == H264BSD_ERROR || result == H264BSD_PARAM_SET_ERROR) {
+      printf("error decoding nalu %d %d\n", result, nread);
+    }
+  }
 
   switch (result) {
   case H264BSD_PIC_RDY:

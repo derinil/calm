@@ -4,27 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-void print_cframe_hash(struct CFrame *frame);
-
-// Quick hash function
-// http://www.partow.net/programming/hashfunctions/index.html
-static unsigned int DJBHash(char *str, unsigned int length) {
-  unsigned int hash = 5381;
-  unsigned int i = 0;
-
-  for (i = 0; i < length; ++str, ++i) {
-    hash = ((hash << 5) + hash) + (*str);
-  }
-
-  return hash;
-}
-
 union ULLSplitter {
   uint64_t ull;
   uint8_t bs[8];
 };
 
-static void write_uint64(uint8_t *buf, uint64_t u) {
+void write_uint64(uint8_t *buf, uint64_t u) {
   union ULLSplitter split;
   split.ull = u;
   memcpy(buf, split.bs, 8);
@@ -52,16 +37,23 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   buf_len += sizeof(buf_len);
   // Length for nalu_h_len
   buf_len += sizeof(frame->nalu_h_len);
-  // Length for frame_length
-  buf_len += sizeof(frame->frame_length);
-  // Length for frame
-  buf_len += frame->frame_length;
+
+  // Ps
   buf_len += sizeof(frame->parameter_sets_count);
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
     // Size of ps length
     buf_len += sizeof(frame->parameter_sets_lengths[i]);
     // Ps length
     buf_len += frame->parameter_sets_lengths[i];
+  }
+
+  // Nalus
+  buf_len += sizeof(frame->nalus_count);
+  for (uint64_t i = 0; i < frame->nalus_count; i++) {
+    // Size of nalu length
+    buf_len += sizeof(frame->nalus_lengths[i]);
+    // Nalu length
+    buf_len += frame->nalus_lengths[i];
   }
 
   buf = malloc(sizeof(*buf) * buf_len);
@@ -79,21 +71,23 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   write_uint64(buf + buf_off, frame->nalu_h_len);
   buf_off += 8;
 
-  write_uint64(buf + buf_off, frame->frame_length);
-  buf_off += 8;
-
-  memcpy(buf + buf_off, frame->frame, frame->frame_length);
-  buf_off += frame->frame_length;
-
   write_uint64(buf + buf_off, frame->parameter_sets_count);
   buf_off += 8;
-
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
     write_uint64(buf + buf_off, frame->parameter_sets_lengths[i]);
     buf_off += 8;
     memcpy(buf + buf_off, frame->parameter_sets[i],
            frame->parameter_sets_lengths[i]);
     buf_off += frame->parameter_sets_lengths[i];
+  }
+
+  write_uint64(buf + buf_off, frame->nalus_count);
+  buf_off += 8;
+  for (uint64_t i = 0; i < frame->nalus_count; i++) {
+    write_uint64(buf + buf_off, frame->nalus_lengths[i]);
+    buf_off += 8;
+    memcpy(buf + buf_off, frame->nalus[i], frame->nalus_lengths[i]);
+    buf_off += frame->nalus_lengths[i];
   }
 
   assert(buf_off == buf_len);
@@ -119,15 +113,6 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
   frame->nalu_h_len = read_uint64(buffer + off);
   off += 8;
 
-  frame->frame_length = read_uint64(buffer + off);
-  off += 8;
-
-  frame->frame = malloc(sizeof(*frame->frame) * frame->frame_length);
-  // TODO: dont need this
-  // memset(frame->frame, 0, sizeof(*frame->frame));
-  memcpy(frame->frame, buffer + off, frame->frame_length);
-  off += frame->frame_length;
-
   frame->parameter_sets_count = read_uint64(buffer + off);
   off += 8;
 
@@ -152,56 +137,20 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
     off += frame->parameter_sets_lengths[i];
   }
 
+  frame->nalus_count = read_uint64(buffer + off);
+  off += 8;
+
+  for (uint64_t i = 0; i < frame->nalus_count; i++) {
+    frame->nalus_lengths[i] = read_uint64(buffer + off);
+    off += 8;
+
+    frame->nalus[i] =
+        malloc(sizeof(*frame->nalus[i]) * frame->nalus_lengths[i]);
+    memcpy(frame->nalus[i], buffer + off, frame->nalus_lengths[i]);
+    off += frame->nalus_lengths[i];
+  }
+
   assert(off == length);
 
   return frame;
-}
-
-void print_cframe_hash(struct CFrame *frame) {
-  printf("frame length %llu\n", frame->frame_length);
-  // for (uint64_t i = 0; i < frame->frame_length; i++)
-  //   printf("%x", frame->frame[i]);
-  // printf("\n");
-  printf("got hash %u\n", DJBHash((char *)frame->frame, frame->frame_length));
-  printf("ps count %llu\n", frame->parameter_sets_count);
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    printf("ps length %llu\n", frame->parameter_sets_lengths[i]);
-    for (uint64_t x = 0; x < frame->parameter_sets_lengths[i]; x++)
-      printf("%x", frame->parameter_sets[i][x]);
-    printf("\n");
-  }
-}
-
-struct SerializedBuffer *condense_cframe(struct CFrame *frame) {
-  uint8_t *buf;
-  uint64_t total_len = 0;
-  const uint8_t start_code[4] = {0, 0, 0, 1};
-
-  // 4 byte start codes between each nalu
-
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    total_len += 4;
-    total_len += frame->parameter_sets_lengths[i];
-  }
-
-  total_len += 4;
-  total_len += frame->frame_length;
-
-  buf = calloc(total_len, sizeof(*buf));
-  if (!buf)
-    return NULL;
-
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    memcpy(buf, start_code, 4);
-    memcpy(buf, frame->parameter_sets[i], frame->parameter_sets_lengths[i]);
-  }
-
-  memcpy(buf, start_code, 4);
-  memcpy(buf, frame->frame, frame->frame_length);
-
-  struct SerializedBuffer *serbuf = calloc(1,sizeof(*serbuf));
-  serbuf->buffer = buf;
-  serbuf->length = total_len;
-  
-  return serbuf;
 }
