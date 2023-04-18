@@ -59,19 +59,22 @@ uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len) {
   uint8_t *buf = NULL;
   uint32_t swapped = 0;
   uint64_t total_len = 0;
+  uint64_t buf_off = 0;
   static const int avcc_h_len = 4;
 
   for (uint64_t i = 0; i < frame->nalus_count; i++)
     total_len += avcc_h_len + frame->nalus_lengths[i];
 
-  buf = malloc(total_len * sizeof(*buf));
+  buf = calloc(total_len, sizeof(*buf));
   if (!buf)
     return NULL;
 
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
     swapped = CFSwapInt32HostToBig(frame->nalus_lengths[i]);
-    write_uint32(buf, swapped);
-    memcpy(buf + 4, frame->nalus[i], frame->nalus_lengths[i]);
+    write_uint32(buf + buf_off, swapped);
+    buf_off += avcc_h_len;
+    memcpy(buf + buf_off, frame->nalus[i], frame->nalus_lengths[i]);
+    buf_off += frame->nalus_lengths[i];
   }
 
   *len = total_len;
@@ -239,13 +242,16 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
     this->decompression_session = NULL;
   }
 
-  // TODO: NALUnitHeaderLength: 4 works for vt compressed frames
+  for (int i = 0; i < (int)frame->parameter_sets_count; i++) {
+    printf("got nalu len %llu %x\n", frame->parameter_sets_lengths[i],
+           frame->parameter_sets[i][0]);
+  }
 
   CMFormatDescriptionRef format_description = NULL;
   OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
       NULL, frame->parameter_sets_count,
       (const unsigned char *const *)frame->parameter_sets,
-      (size_t *)frame->parameter_sets_lengths, frame->nalu_h_len,
+      (size_t *)frame->parameter_sets_lengths, (int)frame->nalu_h_len,
       &format_description);
   if (status) {
     return status;

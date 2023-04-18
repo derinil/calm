@@ -79,13 +79,11 @@ void net_send_frame(uv_idle_t *handle) {
     return;
 
   frame = (struct CFrame *)dstack_pop_nonblock(server->stack);
-  if (!frame)
+  if (!frame || frame->nalus_count == 0)
     return;
   buf = serialize_cframe(frame);
   if (!buf)
     return;
-  // TODO: sometimes libuv blocks for a bit and if we release before decoder
-  // finishes we get a -12909 or a -12707 or a -12704
   release_cframe(frame);
   req = malloc(sizeof(*req));
   memset(req, 0, sizeof(*req));
