@@ -21,6 +21,10 @@ uint64_t read_uint64(uint8_t *buf) {
   return split.ull;
 }
 
+void retain_cframe(struct CFrame *frame) {
+  atomic_fetch_add(&frame->refcount, 1);
+}
+
 struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
   uint64_t buf_len = 0;

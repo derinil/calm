@@ -35,6 +35,7 @@ struct MacDFrame {
 struct MacDecodeContext {
   struct MacDecoder *decoder;
   uint8_t *condensed;
+  struct CFrame *cframe;
 };
 
 union USplitter {
@@ -94,8 +95,7 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
                                      CMTime presentationDuration) {
   struct MacDecodeContext *ctx = (struct MacDecodeContext *)sourceFrameRefCon;
   struct MacDecoder *decoder = (struct MacDecoder *)ctx->decoder;
-  if (!decoder)
-    return;
+  struct CFrame *cframe = (struct CFrame *)ctx->cframe;
 
   free(ctx->condensed);
   free(ctx);
@@ -104,6 +104,8 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   if (!frame)
     return;
   memset(frame, 0, sizeof(*frame));
+
+  frame->frame.ctx = cframe;
 
   if (!imageBuffer || infoFlags & kVTDecodeInfo_FrameDropped) {
     printf("frame dropped or failed, status: %d\n", status);
@@ -200,6 +202,7 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   VTDecodeFrameFlags decode_flags =
       kVTDecodeFrame_EnableAsynchronousDecompression;
 
+  ctx->cframe = frame;
   ctx->decoder = decoder;
   ctx->condensed = condensed_ptr;
 

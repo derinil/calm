@@ -78,7 +78,8 @@ pub fn build(b: *std.Build) void {
 
     _ = libuv.link(b, exe) catch unreachable;
 
-    _ = h264bsd.link(b, exe) catch unreachable;
+    if (decoder == .software)
+        _ = h264bsd.link(b, exe) catch unreachable;
 
     const defaultFlags = &[_][]const u8{
         "-Wall",

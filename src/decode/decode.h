@@ -16,6 +16,7 @@ struct DFrame {
   size_t bytes_per_row;
   // 32 bit bgra
   uint8_t *data;
+  void *ctx;
 };
 
 typedef void (*DecompressedFrameHandler)(struct DFrame *frame);

@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdatomic.h>
 
 // We conditionally compile the implementations based on the platform.
 
@@ -16,6 +17,8 @@ struct CFrame {
   uint8_t **nalus;
   uint64_t nalus_count;
   uint64_t *nalus_lengths;
+  // adhoc reference count, starts from 2 by default
+  atomic_int refcount;
 };
 
 // TODO: use uint8_t over char
@@ -40,6 +43,8 @@ struct Capturer *setup_capturer(CompressedFrameHandler handler);
 // this does not block.
 int start_capture(struct Capturer *capturer);
 int stop_capture(struct Capturer *capturer);
+
+void retain_cframe(struct CFrame *frame);
 void release_cframe(struct CFrame *frame);
 
 struct SerializedBuffer {

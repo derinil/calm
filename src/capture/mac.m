@@ -9,6 +9,7 @@
 #include <Foundation/Foundation.h>
 #include <IOSurface/IOSurfaceAPI.h>
 #include <VideoToolbox/VideoToolbox.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -40,6 +41,9 @@ struct MacCFrame {
 };
 
 void release_cframe(struct CFrame *frame) {
+  atomic_fetch_sub(&frame->refcount, 1);
+  if (frame->refcount > 0)
+    return;
   NSMutableData *data;
   struct MacCFrame *this = (struct MacCFrame *)frame;
   for (size_t x = 0; x < this->datas_len; x++) {
@@ -52,16 +56,23 @@ void release_cframe(struct CFrame *frame) {
   free(this);
 }
 
+struct MacCFrame *init_mac_cframe() {
+  struct MacCFrame *frame = calloc(1, sizeof(*frame));
+  if (!frame)
+    return NULL;
+  frame->frame.refcount = ATOMIC_VAR_INIT(0);
+  return frame;
+}
+
 void compressed_frame_callback(void *output_callback_ref_con,
                                void *source_frame_ref_con, OSStatus status,
                                VTEncodeInfoFlags info_flags,
                                CMSampleBufferRef sample_buffer) {
   NSMutableData *ps_data;
   CMBlockBufferRef block_buffer;
-  struct MacCFrame *frame = malloc(sizeof(*frame));
+  struct MacCFrame *frame = init_mac_cframe();
   if (!frame)
     return;
-  memset(frame, 0, sizeof(*frame));
 
   if (status == kVTEncodeInfo_FrameDropped || !sample_buffer)
     return;
