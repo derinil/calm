@@ -20,6 +20,7 @@
 - https://stackoverflow.com/questions/47217998/h264-encoding-and-decoding-using-videotoolbox
 - https://medium.com/@pinkjuice66/ios-realtime-video-streaming-app-tutorial-part1-d98bda51ca32
 - https://github.com/NVIDIA/video-sdk-samples/tree/master/nvEncDXGIOutputDuplicationSample
+- https://stackoverflow.com/questions/24884827/possible-locations-for-sequence-picture-parameter-sets-for-h-264-stream
 
 # h264 decoding
 

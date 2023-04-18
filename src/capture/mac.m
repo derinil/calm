@@ -35,6 +35,7 @@ struct MacCFrame {
   struct CFrame frame;
   NSMutableData **datas;
   size_t datas_len;
+  uint8_t *block_buf_data;
   CMBlockBufferRef block_buffer;
 };
 
@@ -115,7 +116,6 @@ void compressed_frame_callback(void *output_callback_ref_con,
       size_t psp_len;
       int nalu_h_len;
       // TODO: use the points to frame->frame.parameter_sets[i] instead of psp
-      // TODO: save nalu header length in cframe
       CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
           description, i, &psp, &psp_len, NULL, &nalu_h_len);
 
@@ -259,9 +259,11 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
 
   CFTypeRef compression_values[] = {
     kCFBooleanTrue,
-    kVTProfileLevel_H264_Baseline_AutoLevel,
+    // kVTProfileLevel_H264_Baseline_AutoLevel,
+    kVTProfileLevel_H264_ConstrainedBaseline_AutoLevel,
     // TODO: CAVLC requires considerably less processing to decode than CABAC
-    kVTH264EntropyMode_CABAC,
+    // kVTH264EntropyMode_CABAC,
+    kVTH264EntropyMode_CAVLC,
     @120,
     kCFBooleanTrue,
     kVTAlphaChannelMode_StraightAlpha,

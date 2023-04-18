@@ -39,6 +39,8 @@ uint8_t *split_u32(uint32_t *buf, uint64_t len) {
   return split;
 }
 
+volatile int frames = 0;
+
 // TODO: make async
 void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   int err;
@@ -60,34 +62,63 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
     for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
       result = h264bsdDecode(decoder->hantro_decoder, frame->parameter_sets[i],
                              frame->parameter_sets_lengths[i], 0, &nread);
-      if (result == H264BSD_ERROR || result == H264BSD_PARAM_SET_ERROR) {
-        printf("error decoding ps %d %d\n", result, nread);
-      }
+      if (result)
+        printf("ps decode finished with: %d\n", result);
     }
   }
+
+  printf("finished ps decode\n");
+  uint32_t croppingFlag, left, width, top, height;
 
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
+    printf("nalu: ");
+    for (int j = 0; j < 10; j++)
+      printf("%x", frame->nalus[i][j]);
+    printf("\n");
     result = h264bsdDecode(decoder->hantro_decoder, frame->nalus[i],
                            frame->nalus_lengths[i], 0, &nread);
-    if (result == H264BSD_ERROR || result == H264BSD_PARAM_SET_ERROR) {
-      printf("error decoding nalu %d %d\n", result, nread);
+
+    switch (result) {
+    case H264BSD_PIC_RDY:
+      printf("getting decoded!!\n");
+      decoded =
+          h264bsdNextOutputPictureBGRA(decoder->hantro_decoder, &ta, &ta, &ta);
+      break;
+    case H264BSD_HDRS_RDY:
+      h264bsdCroppingParams(decoder->hantro_decoder, &croppingFlag, &left,
+                            &width, &top, &height);
+      if (!croppingFlag) {
+        width = h264bsdPicWidth(decoder->hantro_decoder) * 16;
+        height = h264bsdPicHeight(decoder->hantro_decoder) * 16;
+      }
+
+      char *cropped = croppingFlag ? "(cropped) " : "";
+      printf("Decoded headers. Image size %s%dx%d.\n", cropped, width, height);
+
+      printf("headers ready\n");
+      break;
+    case H264BSD_RDY:
+      printf("normal ready\n");
+      break;
+    case H264BSD_ERROR:
+      printf("h264 error\n");
+      break;
+    case H264BSD_PARAM_SET_ERROR:
+      printf("h264 param set error\n");
+      break;
+    default:
+      printf("result is %d\n", result);
+      break;
     }
   }
 
-  switch (result) {
-  case H264BSD_PIC_RDY:
-    decoded =
-        h264bsdNextOutputPictureBGRA(decoder->hantro_decoder, &ta, &ta, &ta);
-    break;
-  case H264BSD_ERROR:
-    printf("h264 error\n");
+  printf("finished one frame\n");
+
+  frames++;
+  if (frames == 2)
+    exit(0);
+  else
     return;
-  case H264BSD_PARAM_SET_ERROR:
-    printf("h264 param set error\n");
-    return;
-  default:
-    return;
-  }
 
   struct DFrame *dframe = calloc(1, sizeof(*dframe));
   dframe->width = h264bsdPicWidth(decoder->hantro_decoder);
