@@ -81,18 +81,17 @@ void net_send_frame(uv_idle_t *handle) {
   frame = (struct CFrame *)dstack_pop_nonblock(server->stack);
   if (!frame || frame->nalus_count == 0)
     return;
+  printf("refcount is %d\n", frame->refcount);
   buf = serialize_cframe(frame);
   if (!buf)
     return;
   release_cframe(frame);
-  req = malloc(sizeof(*req));
-  memset(req, 0, sizeof(*req));
+  req = calloc(1, sizeof(*req));
   req->data = server;
   wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
   // we can free the buffer here without freeing the actual underlying char
   // array
   free(buf);
-
   uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
            on_write_callback);
 }

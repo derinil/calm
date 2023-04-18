@@ -10,6 +10,7 @@
 #define CALM_PORT 58912
 
 struct NetServer {
+  // TODO: make atomic or use lock
   int connected;
   uv_loop_t *loop;
   uv_tcp_t *tcp_client;
