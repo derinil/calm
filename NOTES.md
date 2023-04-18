@@ -76,6 +76,7 @@
 
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
 - cursor only seen when first starting
+- client always skips the first iframe
 
 # vscode extensions
 - clangd

@@ -85,6 +85,18 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
     buf_off += frame->parameter_sets_lengths[i];
   }
 
+#if 0
+  if (frame->parameter_sets_count) {
+    printf("sent keyframe %llu\n", frame->parameter_sets_count);
+    for (uint64_t j = 0; j < frame->parameter_sets_count; j++) {
+      printf("len: %llu\n", frame->parameter_sets_lengths[j]);
+      for (uint64_t i = 0; i < frame->parameter_sets_lengths[j]; i++)
+        printf("%x", frame->parameter_sets[j][i]);
+      printf("\n");
+    }
+  }
+#endif
+
   write_uint64(buf + buf_off, frame->nalus_count);
   buf_off += 8;
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
@@ -137,6 +149,18 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
            frame->parameter_sets_lengths[i]);
     off += frame->parameter_sets_lengths[i];
   }
+
+#if 0
+  if (frame->is_keyframe) {
+    printf("got keyframe %llu\n", frame->parameter_sets_count);
+    for (uint64_t j = 0; j < frame->parameter_sets_count; j++) {
+      printf("len: %llu\n", frame->parameter_sets_lengths[j]);
+      for (uint64_t i = 0; i < frame->parameter_sets_lengths[j]; i++)
+        printf("%x", frame->parameter_sets[j][i]);
+      printf("\n");
+    }
+  }
+#endif
 
   frame->nalus_count = read_uint64(buffer + off);
   off += 8;

@@ -183,10 +183,14 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   struct MacDecoder *decoder = (struct MacDecoder *)subdec;
   struct MacDecodeContext *ctx = malloc(sizeof(*ctx));
 
-  if (frame->is_keyframe) {
-    err = start_decoder(subdec, frame);
-    if (err) {
-      printf("start_decoder failed with %d\n", err);
+  if (!decoder->decompression_session) {
+    if (frame->is_keyframe) {
+      err = start_decoder(subdec, frame);
+      if (err) {
+        printf("start_decoder failed with %d\n", err);
+        return;
+      }
+    } else {
       return;
     }
   }
@@ -214,13 +218,11 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   CFRelease(sample_buffer);
 }
 
-struct Decoder *
-setup_decoder(DecompressedFrameHandler decompressed_frame_handler) {
-  struct MacDecoder *this = malloc(sizeof(*this));
+struct Decoder *setup_decoder(DecompressedFrameHandler handler) {
+  struct MacDecoder *this = calloc(1, sizeof(*this));
   if (!this)
     return NULL;
-  memset(this, 0, sizeof(*this));
-  this->decoder.decompressed_frame_handler = decompressed_frame_handler;
+  this->decoder.decompressed_frame_handler = handler;
   return &this->decoder;
 }
 
@@ -230,8 +232,11 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
   // Already initialized
   // TODO: maybe simply remove this check so we can create new session
   // with new pps, CFRelease format and session
-  if (this->decompression_session) {
-    return 0;
+  if (this->format_description) {
+    CFRelease(this->format_description);
+    CFRelease(this->decompression_session);
+    this->format_description = NULL;
+    this->decompression_session = NULL;
   }
 
   // TODO: NALUnitHeaderLength: 4 works for vt compressed frames

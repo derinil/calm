@@ -99,9 +99,6 @@ void compressed_frame_callback(void *output_callback_ref_con,
 #define AVG_PS_LEN 1024
 #define AVG_DAT_LEN 10 * 1024
 
-  // static const size_t startCodeLength = 4;
-  static const uint8_t startCode[] = {0x00, 0x00, 0x00, 0x01};
-
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
   if (is_key) {
@@ -189,7 +186,7 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
                         CGDisplayStreamFrameStatus status,
                         uint64_t display_time, IOSurfaceRef surface,
                         CGDisplayStreamUpdateRef update) {
-#define TIME_DEBUG 1
+#define TIME_DEBUG 0
 #if TIME_DEBUG
   static uint64_t prev_time = 0;
 #endif
@@ -222,10 +219,10 @@ void raw_frame_callback(VTCompressionSessionRef compression_session,
   CVPixelBufferRelease(image_buffer);
   IOSurfaceDecrementUseCount(surface);
   CFRelease(surface);
-#if 0
+#if TIME_DEBUG
   printf("received frame with difference %.0f\n", curr - prev_time);
-#endif
   prev_time = curr;
+#endif
 }
 
 struct Capturer *
