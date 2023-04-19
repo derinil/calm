@@ -82,12 +82,16 @@
 
 - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
 - cursor only seen when first starting
-- client always skips the first iframe
 - use flatbuffers or capn proto (idk) to avoid manually writing serialization code
 
 # vscode extensions
 - clangd
 - zls
+
+# hardware support
+- https://gpuopen.com/advanced-media-framework/
+- https://github.com/intel/media-driver
+- https://developer.nvidia.com/video-codec-sdk
 
 # debugging
 - lldb on macos

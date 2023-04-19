@@ -316,6 +316,7 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
   CFTypeRef keys[] = {
       kCGDisplayStreamMinimumFrameTime,
       kCGDisplayStreamQueueDepth,
+      kCGDisplayStreamShowCursor,
   };
   CFTypeRef values[] = {
     // Supposedly the default value for kCGDisplayStreamMinimumFrameTime
@@ -323,10 +324,11 @@ setup_capturer(CompressedFrameHandler compressed_frame_handler) {
     // behaviour.
     @0,
     @5,
+    @YES,
   };
 
   CFDictionaryRef opts =
-      CFDictionaryCreate(NULL, keys, values, 2, &kCFTypeDictionaryKeyCallBacks,
+      CFDictionaryCreate(NULL, keys, values, 3, &kCFTypeDictionaryKeyCallBacks,
                          &kCFTypeDictionaryValueCallBacks);
 
   CGDisplayStreamRef stream = CGDisplayStreamCreateWithDispatchQueue(

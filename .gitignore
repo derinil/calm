@@ -6,3 +6,5 @@ zig-out
 *.ini
 *.out
 *.txt
+deps/nvenc/stubs
+deps/nvenc/cuda.h
