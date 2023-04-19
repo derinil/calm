@@ -14,7 +14,7 @@ static struct Server *g_server;
 
 void server_decompressed_frame_callback(struct DFrame *frame) {
   dstack_push(g_server->decompressed_stack, frame, 1);
-  void_cframe_releaser(frame->ctx);
+  // void_release_cframe(frame->ctx);
 }
 
 void frame_callback(struct CFrame *frame) {
@@ -66,11 +66,11 @@ int start_server() {
   if (!capturer)
     return 2;
 
-  compressed_stack = create_dstack(void_cframe_releaser);
+  compressed_stack = create_dstack(void_release_cframe);
   if (!compressed_stack)
     return 3;
 
-  decompressed_stack = create_dstack(void_dframe_releaser);
+  decompressed_stack = create_dstack(void_release_dframe);
   if (!decompressed_stack)
     return 4;
 

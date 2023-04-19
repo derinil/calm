@@ -111,7 +111,7 @@ void draw_video_frame(struct DStack *stack) {
                     GL_UNSIGNED_BYTE, dframe->data);
   }
 
-  release_dframe(dframe);
+  release_dframe(&dframe);
 
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT);

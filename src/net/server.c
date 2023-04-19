@@ -85,7 +85,7 @@ void net_send_frame(uv_idle_t *handle) {
   buf = serialize_cframe(frame);
   if (!buf)
     return;
-  release_cframe(frame);
+  // release_cframe(frame);
   req = calloc(1, sizeof(*req));
   req->data = server;
   wrbuf = uv_buf_init((char *)buf->buffer, buf->length);

@@ -45,7 +45,7 @@ int start_capture(struct Capturer *capturer);
 int stop_capture(struct Capturer *capturer);
 
 void retain_cframe(struct CFrame *frame);
-void release_cframe(struct CFrame *frame);
+void release_cframe(struct CFrame **frame_ptr);
 
 struct SerializedBuffer {
   uint8_t *buffer;

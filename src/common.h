@@ -10,7 +10,7 @@ struct ThreadArgs {
 };
 
 // Helper functions shared between server and client
-void void_cframe_releaser(void *vcf);
-void void_dframe_releaser(void *vdf);
+void void_release_cframe(void *vcf);
+void void_release_dframe(void *vdf);
 
 #endif

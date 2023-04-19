@@ -40,7 +40,8 @@ struct MacCFrame {
   CMBlockBufferRef block_buffer;
 };
 
-void release_cframe(struct CFrame *frame) {
+void release_cframe(struct CFrame **frame_ptr) {
+  struct CFrame *frame = *frame_ptr;
   atomic_fetch_sub(&frame->refcount, 1);
   if (frame->refcount > 0)
     return;
@@ -54,6 +55,7 @@ void release_cframe(struct CFrame *frame) {
   free(frame->parameter_sets);
   free(frame->parameter_sets_lengths);
   free(this);
+  *frame_ptr = NULL;
 }
 
 struct MacCFrame *init_mac_cframe() {

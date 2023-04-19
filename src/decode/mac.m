@@ -81,13 +81,12 @@ uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len) {
   return buf;
 }
 
-void release_dframe(struct DFrame *frame) {
+void release_dframe(struct DFrame **frame_ptr) {
+  struct DFrame *frame = *frame_ptr;
   struct MacDFrame *mcf = (struct MacDFrame *)frame;
-  // printf("freeing data\n");
   free(mcf->frame.data);
-  // printf("freed data\n");
   free(mcf);
-  // printf("freed frame\n");
+  *frame_ptr = NULL;
 }
 
 void raw_decompressed_frame_callback(void *decompressionOutputRefCon,

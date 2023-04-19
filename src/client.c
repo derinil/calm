@@ -53,11 +53,11 @@ int start_client() {
     return 1;
   memset(client, 0, sizeof(*client));
 
-  compressed_stack = create_dstack(void_cframe_releaser);
+  compressed_stack = create_dstack(void_release_cframe);
   if (!compressed_stack)
     return 2;
 
-  decompressed_stack = create_dstack(void_dframe_releaser);
+  decompressed_stack = create_dstack(void_release_dframe);
   if (!decompressed_stack)
     return 3;
 
