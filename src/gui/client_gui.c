@@ -74,6 +74,8 @@ int handle_client_gui(struct DStack *stack) {
   if (!window)
     return 1;
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  // Hide the mouse on the client side
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
   setup_video_renderer();
   draw(window, stack);
   destroy_window(window);

@@ -85,15 +85,18 @@
 - use flatbuffers or capn proto (idk) to avoid manually writing serialization code
 
 # vscode extensions
+
 - clangd
 - zls
 
 # hardware support
+
 - https://gpuopen.com/advanced-media-framework/
 - https://github.com/intel/media-driver
 - https://developer.nvidia.com/video-codec-sdk
 
 # debugging
+
 - lldb on macos
 ```
 lldb ./zig-out/bin/calm
@@ -111,3 +114,8 @@ breakpoint delete 1
 - remove screen recording privileges of calm if already allowed
 - codesign via `codesign -s "calm_codesign" ./zig-out/bin/calm`
 - you can now use lldb :D
+
+# future todo
+
+- encryption
+- clipboard transfer
