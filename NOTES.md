@@ -35,6 +35,12 @@
 - https://stackoverflow.com/questions/37091132/ios-yuv-420v-using-gl-texture-2d-shows-wrong-colour-in-opengl-shader
 - https://stackoverflow.com/questions/25078364/cmvideoformatdescriptioncreatefromh264parametersets-issues
 
+
+# nice read
+
+- https://stackoverflow.com/questions/69239660/what-are-conflict-misses-exactly
+- https://www.internalpointers.com/post/lock-free-multithreading-atomic-operations
+
 # colors
 
 - http://paulbourke.net/dataformats/yuv/

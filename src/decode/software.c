@@ -44,6 +44,10 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
     h264bsdInit(decoder->hantro_decoder, HANTRO_FALSE);
 
     for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+      printf("ps: ");
+      for (uint64_t j = 0; j < frame->parameter_sets_lengths[i]; j++)
+        printf("%x", frame->parameter_sets[i][j]);
+      printf("\n");
       result = h264bsdDecode(decoder->hantro_decoder, frame->parameter_sets[i],
                              frame->parameter_sets_lengths[i], 0, &nread);
       if (result)
@@ -55,10 +59,6 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   uint32_t croppingFlag, left, width, top, height;
 
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
-    printf("nalu: ");
-    for (int j = 0; j < 10; j++)
-      printf("%x", frame->nalus[i][j]);
-    printf("\n");
     result = h264bsdDecode(decoder->hantro_decoder, frame->nalus[i],
                            frame->nalus_lengths[i], 0, &nread);
 
@@ -98,7 +98,7 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
 
   printf("finished one frame\n");
 
-#if 1
+#if 0
   frames++;
   if (frames == 2)
     exit(0);
@@ -112,6 +112,7 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   struct DFrame *dframe = calloc(1, sizeof(*dframe));
   dframe->width = h264bsdPicWidth(decoder->hantro_decoder);
   dframe->height = h264bsdPicHeight(decoder->hantro_decoder);
+  dframe->ctx = frame;
   dframe->data = split_u32(decoded, dframe->width * dframe->height * 4);
   dframe->bytes_per_row = dframe->width * 4;
   subdec->decompressed_frame_handler(dframe);
@@ -126,9 +127,11 @@ int stop_decoder(struct Decoder *subdec) {
   return 0;
 }
 
-void release_dframe(struct DFrame *frame) {
+void release_dframe(struct DFrame **frame_ptr) {
+  struct DFrame *frame = *frame_ptr;
   free(frame->data);
   free(frame);
+  *frame_ptr = NULL;
 }
 
 uint8_t *split_u32(uint32_t *buf, uint64_t len) {
