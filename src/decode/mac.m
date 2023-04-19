@@ -99,19 +99,11 @@ void raw_decompressed_frame_callback(void *decompressionOutputRefCon,
   struct MacDecoder *decoder = ctx->decoder;
   struct CFrame *cframe = ctx->cframe;
 
-  /*
-│ ◆─(MacDecodeContext *) ctx = 0x0000600000221340 ││                         │
-│ ├─◆─(MacDecoder *) decoder = 0x0000600000c11200 ││                         │
-│ ├─◆─(uint8_t *) condensed = 0x0000000110050000 "" ││                         │
-│ └─◆─(CFrame *) cframe = 0x000060000290c540 ││                         │ │
-◆─(MacDecoder *) decoder = 0x0000600000c11200 ││                         │ │
-◆─(CFrame *) cframe = 0x0000600003701800 ││                         │
-inexplicable
-*/
+  // printf("ctx callback: %p %p %p %p\n", ctx, ctx->cframe, ctx->decoder,
+  // ctx->condensed);
 
   free(ctx->condensed);
   free(ctx);
-  // CFBridgingRelease(sourceFrameRefCon);
 
   struct MacDFrame *frame = malloc(sizeof(*frame));
   if (!frame)
@@ -223,12 +215,13 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   ctx->decoder = decoder;
   ctx->condensed = condensed_ptr;
 
-  NSObject *ns_ctx = (__bridge NSObject *)(ctx);
+  // printf("ctx: %p %p %p %p\n", ctx, ctx->cframe, ctx->decoder,
+  // ctx->condensed);
 
   // FIXME: passing a raw c pointer as the context makes it get released somehow
   // somewhere, we need to retain this pointer
   VTDecompressionSessionDecodeFrame(decoder->decompression_session,
-                                    sample_buffer, decode_flags, ns_ctx, NULL);
+                                    sample_buffer, decode_flags, ctx, NULL);
 
   // TODO: dont think we need this, might even be a hindrance
   // CMSampleBufferInvalidate(sample_buffer);

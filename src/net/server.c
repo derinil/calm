@@ -81,7 +81,6 @@ void net_send_frame(uv_idle_t *handle) {
   frame = (struct CFrame *)dstack_pop_nonblock(server->stack);
   if (!frame || frame->nalus_count == 0)
     return;
-  printf("refcount is %d\n", frame->refcount);
   buf = serialize_cframe(frame);
   if (!buf)
     return;
