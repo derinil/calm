@@ -93,7 +93,6 @@ void net_send_frame(uv_idle_t *handle) {
   free(buf);
   uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
            on_write_callback);
-  printf("sent frame\n");
 }
 
 void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
