@@ -9,6 +9,7 @@
 #include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "robot/robot.c"
 
 static struct Server *g_server;
 
@@ -61,6 +62,8 @@ int start_server() {
   if (!server)
     return 1;
   memset(server, 0, sizeof(*server));
+
+  click();
 
   capturer = setup_capturer(frame_callback);
   if (!capturer)

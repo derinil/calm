@@ -7,3 +7,6 @@
 [submodule "deps/h264bsd"]
 	path = deps/h264bsd
 	url = https://github.com/derinil/h264bsd.git
+[submodule "deps/robotc"]
+	path = deps/robotc
+	url = https://github.com/derinil/robotC.git

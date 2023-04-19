@@ -5,6 +5,7 @@ const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
 const libuv = @import("deps/libuv/build.zig");
 const h264bsd = @import("deps/h264bsd/build.zig");
+const robotc = @import("deps/robotc/build.zig");
 
 const Decoders = enum {
     hardware,
@@ -77,6 +78,8 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath("deps/cimgui/generator/output/");
 
     _ = libuv.link(b, exe) catch unreachable;
+    
+    _ = robotc.link(b, exe) catch unreachable;
 
     if (decoder == .software)
         _ = h264bsd.link(b, exe) catch unreachable;
