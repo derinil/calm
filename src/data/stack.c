@@ -74,7 +74,6 @@ void *dstack_pop_block(struct DStack *ds) {
   if (element->remove_at > element->read_count)
     goto end;
   ds->elements[ds->read_curr] = (struct DSElement){0};
-  ;
   ds->read_curr++;
   ds->length--;
   if (ds->read_curr == MAX_DS_LEN)
