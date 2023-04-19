@@ -15,6 +15,7 @@ int stop_capture(struct Capturer *capturer) {
   return 0;
 }
 
-void release_cframe(struct CFrame *frame) {
-  free(frame);
+void release_cframe(struct CFrame **frame_ptr) {
+  free(*frame_ptr);
+  *frame_ptr = NULL;
 }

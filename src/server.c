@@ -12,9 +12,9 @@
 
 static struct Server *g_server;
 
-void server_decompressed_frame_callback(struct DFrame *frame) {
-  dstack_push(g_server->decompressed_stack, frame, 1);
-  // void_release_cframe(frame->ctx);
+void server_decompressed_frame_callback(struct DFrame *dframe) {
+  dstack_push(g_server->decompressed_stack, dframe, 1);
+  void_release_cframe(dframe->ctx);
 }
 
 void frame_callback(struct CFrame *frame) {
@@ -23,7 +23,7 @@ void frame_callback(struct CFrame *frame) {
   dstack_push(g_server->compressed_stack, frame, 1);
   // Lower priority on the server
   decode_frame(g_server->decoder, frame);
-  // release_cframe(frame);
+  release_cframe(&frame);
 }
 
 void capture_thread(void *vargs) {

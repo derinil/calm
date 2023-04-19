@@ -1,14 +1,14 @@
 #include "stack.h"
+#include "../capture/capture.h"
 #include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 
 struct DStack *create_dstack(FreeElement freer) {
-  struct DStack *ds = malloc(sizeof(*ds));
+  struct DStack *ds = calloc(1, sizeof(*ds));
   if (!ds)
     return NULL;
-  memset(ds, 0, sizeof(*ds));
   if (uv_mutex_init(&ds->mutex))
     return NULL;
   if (uv_cond_init(&ds->cond))
@@ -31,6 +31,7 @@ void dstack_push(struct DStack *ds, void *element, int remove_at) {
     ds->write_curr = 0;
   uv_cond_signal(&ds->cond);
   uv_mutex_unlock(&ds->mutex);
+  struct CFrame *frame = element;
 }
 
 void *dstack_pop_nonblock(struct DStack *ds) {
@@ -72,7 +73,8 @@ void *dstack_pop_block(struct DStack *ds) {
   element->read_count++;
   if (element->remove_at > element->read_count)
     goto end;
-  ds->elements[ds->read_curr] = (struct DSElement){0};;
+  ds->elements[ds->read_curr] = (struct DSElement){0};
+  ;
   ds->read_curr++;
   ds->length--;
   if (ds->read_curr == MAX_DS_LEN)

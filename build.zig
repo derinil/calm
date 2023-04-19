@@ -81,7 +81,10 @@ pub fn build(b: *std.Build) void {
     if (decoder == .software)
         _ = h264bsd.link(b, exe) catch unreachable;
 
-    const defaultFlags = &[_][]const u8{
+    var flags = std.ArrayList([]const u8).init(b.allocator);
+    defer flags.deinit();
+
+    flags.appendSlice(&.{
         "-Wall",
         "-Werror",
         "-Wextra",
@@ -89,7 +92,7 @@ pub fn build(b: *std.Build) void {
         "-Wno-unused-variable",
         "-Wno-unused-parameter",
         "-Wno-unused-but-set-variable",
-    };
+    }) catch unreachable;
 
     switch (target.getOsTag()) {
         .macos => {
@@ -97,14 +100,16 @@ pub fn build(b: *std.Build) void {
                 exe.linkFramework(f);
             }
 
+            // flags.append("-fno-objc-arc") catch unreachable;
+
             for (macFiles) |f| {
-                exe.addCSourceFile(f, defaultFlags);
+                exe.addCSourceFile(f, flags.items);
             }
 
             if (decoder == .software) {
-                exe.addCSourceFile("src/decode/software.c", defaultFlags);
+                exe.addCSourceFile("src/decode/software.c", flags.items);
             } else {
-                exe.addCSourceFile("src/decode/mac.m", defaultFlags);
+                exe.addCSourceFile("src/decode/mac.m", flags.items);
             }
         },
         .windows => {
@@ -116,7 +121,7 @@ pub fn build(b: *std.Build) void {
 
     if (target.getOsTag() == .windows or target.getOsTag() == .linux) {
         for (nvidiaFiles) |f| {
-            exe.addCSourceFile(f, defaultFlags);
+            exe.addCSourceFile(f, flags.items);
         }
     }
 
@@ -124,7 +129,7 @@ pub fn build(b: *std.Build) void {
         var sf = getSourcesInDir(b.allocator, f) catch unreachable;
 
         for (sf) |s| {
-            exe.addCSourceFile(s, defaultFlags);
+            exe.addCSourceFile(s, flags.items);
         }
     }
 
@@ -133,7 +138,7 @@ pub fn build(b: *std.Build) void {
     }
 
     for (sourceFiles) |s| {
-        exe.addCSourceFile(s, defaultFlags);
+        exe.addCSourceFile(s, flags.items);
     }
 
     b.installArtifact(exe);
