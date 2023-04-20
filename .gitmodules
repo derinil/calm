@@ -10,3 +10,7 @@
 [submodule "deps/robotc"]
 	path = deps/robotc
 	url = https://github.com/derinil/robotC.git
+	
+[submodule "deps/glfw"]
+	path = deps/glfw
+	url = https://github.com/derinil/mach-glfw.git
