@@ -75,11 +75,11 @@ int start_server() {
   if (!decompressed_stack)
     return 4;
 
-  control_stack = create_dstack(void_release_dframe);
+  control_stack = create_dstack(void_release_control);
   if (!control_stack)
     return 7;
 
-  net_server = net_setup_server(compressed_stack);
+  net_server = net_setup_server(compressed_stack, control_stack);
   if (!net_server)
     return 5;
 

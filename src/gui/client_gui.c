@@ -1,6 +1,9 @@
+#include "client_gui.h"
 #include "../capture/capture.h"
+#include "../cyborg/control.h"
 #include "../data/stack.h"
 #include "window.h"
+#include <stdlib.h>
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
 #define CIMGUI_USE_GLFW
@@ -68,16 +71,75 @@ static void framebuffer_size_callback(GLFWwindow *window, int width,
   glViewport(0, 0, width, height);
 }
 
-int handle_client_gui(struct DStack *stack) {
+static void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                         int mods) {
+  struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
+  struct Control *ctrl = calloc(1, sizeof(*ctrl));
+  ctrl->source = Keyboard;
+  ctrl->type = action == GLFW_PRESS ? Press : Release;
+  ctrl->value = key;
+  dstack_push(ctrl_stack, ctrl, 1);
+  static const int modifiers[] = {
+      GLFW_MOD_SHIFT, GLFW_MOD_CONTROL,   GLFW_MOD_ALT,
+      GLFW_MOD_SUPER, GLFW_MOD_CAPS_LOCK, GLFW_MOD_NUM_LOCK,
+  };
+  // Hopefully no one is using these ints for keys
+  static const int modifiers_keys[] = {
+      1024, 1025, 1026, 1027, 1028, 1029,
+  };
+  // Send these every frame as there is no easy way of detecting their release
+  // TODO: find an easy way, this is very inefficient
+  for (int i = 0; i < 6; i++) {
+    struct Control *mod_ctrl = calloc(1, sizeof(*mod_ctrl));
+    mod_ctrl->source = Keyboard;
+    mod_ctrl->type = mods & modifiers[i] ? Press : Release;
+    mod_ctrl->value = modifiers_keys[i];
+    dstack_push(ctrl_stack, mod_ctrl, 1);
+  }
+}
+
+static void cursor_position_callback(GLFWwindow *window, double xpos,
+                                     double ypos) {
+  static double last_xpos, last_ypos;
+  struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
+  struct Control *ctrl = calloc(1, sizeof(*ctrl));
+  ctrl->source = Mouse;
+  ctrl->type = Move;
+  ctrl->pos_x = xpos - last_xpos, ctrl->pos_y = ypos - last_ypos;
+  dstack_push(ctrl_stack, ctrl, 1);
+  last_xpos = xpos, last_ypos = ypos;
+}
+
+static void mouse_button_callback(GLFWwindow *window, int button, int action,
+                                  int mods) {
+  struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
+  struct Control *ctrl = calloc(1, sizeof(*ctrl));
+  ctrl->source = Mouse;
+  // Press release :DDDD
+  ctrl->type = action == GLFW_PRESS ? Press : Release;
+  static const int modifiers[] = {
+      GLFW_MOD_SHIFT, GLFW_MOD_CONTROL,   GLFW_MOD_ALT,
+      GLFW_MOD_SUPER, GLFW_MOD_CAPS_LOCK, GLFW_MOD_NUM_LOCK,
+  };
+  // TODO: this has modifier keys as well, we need a cleaner of getting
+  // modifiers
+  ctrl->value = button;
+  dstack_push(ctrl_stack, ctrl, 1);
+}
+
+int handle_client_gui(struct DStack *frame_stack, struct DStack *ctrl_stack) {
   GLFWwindow *window;
   window = setup_window();
   if (!window)
     return 1;
+  glfwSetWindowUserPointer(window, ctrl_stack);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-  // Hide the mouse on the client side
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+  glfwSetKeyCallback(window, key_callback);
+  glfwSetCursorPosCallback(window, cursor_position_callback);
+  glfwSetMouseButtonCallback(window, mouse_button_callback);
   setup_video_renderer();
-  draw(window, stack);
+  draw(window, frame_stack);
   destroy_window(window);
   destroy_video_renderer();
   return 0;

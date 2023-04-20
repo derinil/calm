@@ -45,6 +45,7 @@ int start_client() {
   struct Client *client;
   struct Decoder *decoder;
   struct NetClient *net_client;
+  struct DStack *control_stack;
   struct DStack *compressed_stack;
   struct DStack *decompressed_stack;
 
@@ -59,6 +60,10 @@ int start_client() {
 
   decompressed_stack = create_dstack(void_release_dframe);
   if (!decompressed_stack)
+    return 3;
+
+  control_stack = create_dstack(void_release_control);
+  if (!control_stack)
     return 3;
 
   // TODO: rename to net_setup_client
@@ -85,7 +90,7 @@ int start_client() {
   uv_thread_create(&client->decode_thread, decode_thread, (void *)&decode_args);
 
 #if 1
-  err = handle_client_gui(decompressed_stack);
+  err = handle_client_gui(decompressed_stack, control_stack);
   if (err)
     return err;
 #else

@@ -80,9 +80,8 @@
 
 # todo
 
-- https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
-- cursor only seen when first starting
 - use flatbuffers or capn proto (idk) to avoid manually writing serialization code
+  - use this https://github.com/liteserver/binn seems easier
 
 # vscode extensions
 
@@ -94,6 +93,10 @@
 - https://gpuopen.com/advanced-media-framework/
 - https://github.com/intel/media-driver
 - https://developer.nvidia.com/video-codec-sdk
+
+# might be an issue
+
+- - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
 
 # debugging
 
@@ -119,3 +122,4 @@ breakpoint delete 1
 
 - encryption
 - clipboard transfer
+- much, much fewer allocations
