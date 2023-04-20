@@ -40,10 +40,11 @@ enum Button {
 };
 
 // cy_click_mouse simulates a mouse click at the current mouse position.
-// set double_click > 0 to make it a double click.
-void cy_click_mouse(enum Button button, int double_click);
-void cy_press_mouse(int button);
-void cy_release_mouse(int button);
+// clicks is the number of clicks up to 3. anything less than 2 will be a normal
+// click.
+void cy_click_mouse(enum Button button, int clicks);
+void cy_press_mouse(enum Button button);
+void cy_release_mouse(enum Button button);
 
 void cy_scroll_vertical(size_t offset);
 void cy_scroll_horizontal(size_t offset);
@@ -51,13 +52,34 @@ void cy_scroll_horizontal(size_t offset);
 struct Point cy_get_mouse_position();
 void cy_set_mouse_position(size_t x, size_t y);
 
+void cy_press_key(int key);
+void cy_release_key(int key);
+
 #if defined(__WIN32) || (__WIN64)
 
 #elif defined(__APPLE__)
 
 #include <CoreGraphics/CoreGraphics.h>
 
-void cy_click_mouse(enum Button button, int double_click) {
+/*
+This is most wonderful news: https://developer.apple.com/forums/thread/103992
+"We are changing the default system permissions for using CGEventTaps and
+CGEvent posting to remove this capability without explicit user permission.
+
+I believe the intended behavior is that the first time that your application
+attempts to post an event, you should see an alert stating that application
+"Foo" is trying to control the computer using Accessibility feature, and
+suggesting that you can grant permission to do this in System Prefs, Security &
+Privacy pref pane. In that pref pane, go to the Privacy tab, choose
+Accessibility from the left list, and you should see your app show up, initially
+without a checkbox. If you enter an admin password and check the checkbox, your
+app should be able to post events again."
+(its not)
+There is no prompt, no nothing, you need to go and enable the app in System
+Settings > Privacy & Security > Accessibility
+*/
+
+void cy_click_mouse(enum Button button, int clicks) {
   CGEventSourceRef source =
       CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
   CGEventRef event = CGEventCreate(source);
@@ -76,14 +98,14 @@ void cy_click_mouse(enum Button button, int double_click) {
     mouse_button = kCGMouseButtonLeft;
     break;
   case ButtonMiddle:
-    mouse_type_down = kCGEventLeftMouseDown;
-    mouse_type_up = kCGEventLeftMouseUp;
-    mouse_button = kCGMouseButtonLeft;
+    mouse_type_down = kCGEventOtherMouseDown;
+    mouse_type_up = kCGEventOtherMouseUp;
+    mouse_button = kCGMouseButtonCenter;
     break;
   case ButtonRight:
-    mouse_type_down = kCGEventLeftMouseDown;
-    mouse_type_up = kCGEventLeftMouseUp;
-    mouse_button = kCGMouseButtonLeft;
+    mouse_type_down = kCGEventRightMouseDown;
+    mouse_type_up = kCGEventRightMouseUp;
+    mouse_button = kCGMouseButtonRight;
     break;
   default:
     mouse_type_down = kCGEventOtherMouseDown;
@@ -96,10 +118,16 @@ void cy_click_mouse(enum Button button, int double_click) {
   event =
       CGEventCreateMouseEvent(source, mouse_type_down, position, mouse_button);
   CGEventSetIntegerValueField(event, kCGMouseEventClickState,
-                              double_click ? 2 : 1);
-
+                              clicks ? clicks : 1);
+  CGEventPost(kCGHIDEventTap, event);
+  CGEventSetType(event, mouse_type_up);
   CGEventPost(kCGHIDEventTap, event);
 
+  /*
+  According to this, we might want to use multiple downs and ups but it appears
+  to work fine for now.
+  https://stackoverflow.com/questions/1483657/performing-a-double-click-using-cgeventcreatemouseevent
+  */
 
   CFRelease(event);
   CFRelease(source);
@@ -114,38 +142,62 @@ void cy_press_mouse(enum Button button) {
   event = NULL;
 
   CGEventType mouse_type_down;
-  CGEventType mouse_type_up;
   CGMouseButton mouse_button;
 
   switch (button) {
   case ButtonLeft:
     mouse_type_down = kCGEventLeftMouseDown;
-    mouse_type_up = kCGEventLeftMouseUp;
     mouse_button = kCGMouseButtonLeft;
     break;
   case ButtonMiddle:
-    mouse_type_down = kCGEventLeftMouseDown;
-    mouse_type_up = kCGEventLeftMouseUp;
-    mouse_button = kCGMouseButtonLeft;
+    mouse_type_down = kCGEventOtherMouseDown;
+    mouse_button = kCGMouseButtonCenter;
     break;
   case ButtonRight:
-    mouse_type_down = kCGEventLeftMouseDown;
-    mouse_type_up = kCGEventLeftMouseUp;
-    mouse_button = kCGMouseButtonLeft;
+    mouse_type_down = kCGEventRightMouseDown;
+    mouse_button = kCGMouseButtonRight;
     break;
   default:
     mouse_type_down = kCGEventOtherMouseDown;
-    mouse_type_up = kCGEventOtherMouseUp;
-    // Additional buttons are specified in USB order using the integers 3 to 31.
     mouse_button = button;
     break;
   }
 
   event =
       CGEventCreateMouseEvent(source, mouse_type_down, position, mouse_button);
-  CGEventSetIntegerValueField(event, kCGMouseEventClickState,
-                              double_click ? 2 : 1);
+  CGEventPost(kCGHIDEventTap, event);
+  CFRelease(event);
+  CFRelease(source);
+}
 
+void cy_release_mouse(enum Button button) {
+  CGEventSourceRef source =
+      CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+  CGEventRef event = CGEventCreate(source);
+  CGPoint position = CGEventGetLocation(event);
+  CFRelease(event);
+  event = NULL;
+
+  CGEventType mouse_type_up;
+  CGMouseButton mouse_button;
+
+  switch (button) {
+  case ButtonLeft:
+    mouse_button = kCGMouseButtonLeft;
+    break;
+  case ButtonMiddle:
+    mouse_button = kCGMouseButtonCenter;
+    break;
+  case ButtonRight:
+    mouse_button = kCGMouseButtonRight;
+    break;
+  default:
+    mouse_button = button;
+    break;
+  }
+
+  event =
+      CGEventCreateMouseEvent(source, mouse_type_up, position, mouse_button);
   CGEventPost(kCGHIDEventTap, event);
   CFRelease(event);
   CFRelease(source);
