@@ -1,7 +1,9 @@
+#include "../cyborg/cyborg.h"
 #include "mouse.h"
 #include "types.h"
 
 void click() {
-  updateScreenMetrics();
-  moveMouse((MMSignedPoint){.x = 100, .y = 100});
+  // cy_click_mouse(ButtonLeft, 2);
+  // cy_click_mouse(ButtonLeft, 1);
+  // cy_click_mouse(ButtonLeft, 1);
 }

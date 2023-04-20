@@ -9,7 +9,6 @@
 #include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "robot/robot.c"
 
 static struct Server *g_server;
 
@@ -54,6 +53,7 @@ int start_server() {
   struct Decoder *decoder;
   struct Capturer *capturer;
   struct NetServer *net_server;
+  struct DStack *control_stack;
   struct DStack *compressed_stack;
   struct DStack *decompressed_stack;
   struct ThreadArgs net_ret = {0}, cap_ret = {0};
@@ -62,8 +62,6 @@ int start_server() {
   if (!server)
     return 1;
   memset(server, 0, sizeof(*server));
-
-  click();
 
   capturer = setup_capturer(frame_callback);
   if (!capturer)
@@ -76,6 +74,10 @@ int start_server() {
   decompressed_stack = create_dstack(void_release_dframe);
   if (!decompressed_stack)
     return 4;
+
+  control_stack = create_dstack(void_release_dframe);
+  if (!control_stack)
+    return 7;
 
   net_server = net_setup_server(compressed_stack);
   if (!net_server)
@@ -96,7 +98,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 1
+#if 0
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;

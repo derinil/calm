@@ -15,6 +15,11 @@ struct DSElement {
   int remove_at;
 };
 
+struct Buffer {
+  void **elements;
+  size_t length;
+};
+
 typedef void (*FreeElement)(void *element);
 
 // Stack
@@ -40,6 +45,8 @@ void *dstack_pop_nonblock(struct DStack *ds);
 void *dstack_pop_block(struct DStack *ds);
 // TODO: look into condvars
 int dstack_ready(struct DStack *ds);
+// Empty the stack, useful for control instructions
+struct Buffer dstack_pop_all(struct DStack *ds);
 
 // TODO: destroy_dstack
 

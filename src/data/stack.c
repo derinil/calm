@@ -82,3 +82,22 @@ end:
   uv_mutex_unlock(&ds->mutex);
   return el;
 }
+
+struct Buffer dstack_pop_all(struct DStack *ds) {
+  size_t length = 0;
+  void **els = NULL;
+  uv_mutex_lock(&ds->mutex);
+  if (ds->length == 0)
+    goto end;
+  els = malloc(ds->length * sizeof(*els));
+  for (size_t i = 0; i < ds->length; i++) {
+    els[i] = ds->elements[ds->read_curr + i].actual;
+  }
+  length = ds->length;
+  ds->length = 0;
+  ds->read_curr = 0;
+  ds->write_curr = 0;
+end:
+  uv_mutex_unlock(&ds->mutex);
+  return (struct Buffer){.elements = els, .length = length};
+}

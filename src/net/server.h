@@ -18,10 +18,14 @@ struct NetServer {
   uv_idle_t idle;
   uv_mutex_t mutex;
   uv_thread_t send_loop;
-  struct DStack *stack;
+  // Stack for compressed frames
+  struct DStack *frame_stack;
+  // Stack for mouse/keyboard input
+  struct DStack *ctrl_stack;
 };
 
-struct NetServer *net_setup_server(struct DStack *stack);
+struct NetServer *net_setup_server(struct DStack *frame_stack,
+                                   struct DStack *ctrl_stack);
 int net_start_server(struct NetServer *server);
 int send_reliable(struct NetServer *server, uint8_t *data, size_t len);
 int net_destroy_server(struct NetServer *server);
