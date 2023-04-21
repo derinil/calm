@@ -90,6 +90,7 @@ int start_server() {
   server->decoder = decoder;
   server->capturer = capturer;
   server->net_server = net_server;
+  server->control_stack = control_stack;
   server->compressed_stack = compressed_stack;
   server->decompressed_stack = decompressed_stack;
 
@@ -98,7 +99,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 1
+#if 0
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;

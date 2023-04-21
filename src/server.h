@@ -14,6 +14,7 @@ struct Server {
   struct Decoder *decoder;
   struct Capturer *capturer;
   struct NetServer *net_server;
+  struct DStack *control_stack;
   struct DStack *compressed_stack;
   struct DStack *decompressed_stack;
 };

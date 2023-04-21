@@ -27,6 +27,8 @@ struct NetServer *net_setup_server(struct DStack *frame_stack,
 
   server->frame_stack = frame_stack;
   server->ctrl_stack = ctrl_stack;
+  server->read_state = calloc(1, sizeof(*server->read_state));
+
   // TODO: create separate loop for net
   server->loop = uv_default_loop();
   if (!server->loop)
@@ -67,60 +69,33 @@ void net_send_frame(uv_idle_t *handle) {
   uv_buf_t wrbuf;
   uv_write_t *req;
   struct CFrame *frame;
-  struct Control *ctrl;
   struct SerializedBuffer *buf;
   struct Buffer ctrl_buffer;
   struct NetServer *server = (struct NetServer *)handle->data;
 
-  {
-    frame = (struct CFrame *)dstack_pop_nonblock(server->frame_stack);
-    if (!frame || frame->nalus_count == 0)
-      goto ctrl;
-    buf = serialize_cframe(frame);
-    if (!buf)
-      goto ctrl;
-    // release_cframe(frame);
-    req = calloc(1, sizeof(*req));
-    req->data = server;
-    wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-    // we can free the buffer here without freeing the actual underlying char
-    // array
-    free(buf);
-    if (!server->connected) {
-      free(buf->buffer);
-      free(req);
-      goto ctrl;
-    }
-    uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
-             on_write_callback);
-  }
-
-ctrl : {
-  ctrl_buffer = dstack_pop_all(server->ctrl_stack);
-  if (!ctrl_buffer.length)
+  frame = (struct CFrame *)dstack_pop_nonblock(server->frame_stack);
+  if (!frame || frame->nalus_count == 0)
     return;
-  for (size_t i = 0; i < ctrl_buffer.length; i++) {
-    buf = ctrl_serialize_control(ctrl_buffer.elements[i]);
-    if (!buf)
-      continue;
-    ctrl_release_control(ctrl_buffer.elements[i]);
-    req = calloc(1, sizeof(*req));
-    req->data = server;
-    wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-    free(buf);
-    if (!server->connected) {
-      free(buf->buffer);
-      free(req);
-      return;
-    }
-    uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
-             on_write_callback);
+  buf = serialize_cframe(frame);
+  if (!buf)
+    return;
+  // release_cframe(frame);
+  req = calloc(1, sizeof(*req));
+  req->data = server;
+  wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
+  // we can free the buffer here without freeing the actual underlying char
+  // array
+  free(buf);
+  if (!server->connected) {
+    free(buf->buffer);
+    free(req);
+    return;
   }
-}
+  uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
+           on_write_callback);
 }
 
-static void server_alloc_cb(uv_handle_t *handle, size_t size,
-                                 uv_buf_t *buf) {
+static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {
   struct NetServer *server = (struct NetServer *)handle->data;
   struct ReadState *read_state = server->read_state;
   uint8_t *buffer;

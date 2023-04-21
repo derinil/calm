@@ -11,7 +11,7 @@ void ctrl_release_control(struct Control **ctrl) {
 struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl) {
   uint8_t *buf;
   uint32_t buf_len = 0;
-  uint32_t packet_type = 2;
+  static const uint32_t packet_type = 2;
   uint64_t buf_off = 0;
   struct SerializedBuffer *serbuf;
 

@@ -9,6 +9,7 @@
 #define CALM_PORT 58912
 
 struct NetClient {
+  int connected;
   uv_loop_t *loop;
   // to be used when waiting for the connection etc.
   uv_cond_t cond;

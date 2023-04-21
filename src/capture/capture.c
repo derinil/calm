@@ -1,9 +1,9 @@
 #include "capture.h"
+#include "../util/util.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../util/util.h"
 
 void retain_cframe(struct CFrame *frame) {
   atomic_fetch_add(&frame->refcount, 1);
@@ -12,7 +12,7 @@ void retain_cframe(struct CFrame *frame) {
 struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
   uint32_t buf_len = 0;
-  uint32_t packet_type = 1;
+  static const uint32_t packet_type = 1;
   uint64_t buf_off = 0;
   struct SerializedBuffer *serbuf;
 
@@ -24,12 +24,20 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   buf_len = 0;
   // Length for buf_len itself
   buf_len += sizeof(buf_len);
+  // Length for packet type
+  buf_len += sizeof(packet_type);
   // Length for nalu_h_len
   buf_len += sizeof(frame->nalu_h_len);
 
   // Ps
   buf_len += sizeof(frame->parameter_sets_count);
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+#if 0
+    for (uint64_t x = 0; x < frame->parameter_sets_lengths[i]; x++) {
+      printf("%x", frame->parameter_sets[i][x]);
+    }
+    printf("\n");
+#endif
     // Size of ps length
     buf_len += sizeof(frame->parameter_sets_lengths[i]);
     // Ps length
@@ -53,11 +61,12 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
 
   // Subtract the sizeof buf_len from buf_len so that buf_len is actually the
   // length of the frame
-  write_uint32(buf + buf_off, buf_len - (sizeof(buf_len) + sizeof(packet_type)));
-  buf_off += sizeof(buf_len);
+  write_uint32(buf + buf_off,
+               buf_len - (sizeof(buf_len) - sizeof(packet_type)));
+  buf_off += 4;
 
   write_uint32(buf + buf_off, packet_type);
-  buf_off += sizeof(packet_type);
+  buf_off += 4;
 
   write_uint64(buf + buf_off, frame->nalu_h_len);
   buf_off += 8;
