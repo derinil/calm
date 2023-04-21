@@ -123,89 +123,42 @@ void on_write(uv_write_t *req, int status) {
 // NOTE: https://groups.google.com/g/libuv/c/fRNQV_QGgaA
 
 void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
+  int buffer_ready = 0;
   struct CFrame *frame;
   struct Control *ctrl;
   struct NetClient *client = (struct NetClient *)stream->data;
+  struct ReadState *state = client->read_state;
 
   if (nread < 0) {
     if (nread != UV_EOF) {
-      printf("Read error %d %s\n", client->read_state->state,
-             uv_err_name(nread));
+      printf("Read error %d %s\n", state->state, uv_err_name(nread));
       // uv_close((uv_handle_t *)stream, on_close_cb);
     }
   }
 
-  client->read_state->current_offset += nread;
+  buffer_ready = read_state_handle_buffer(state, (uint8_t *)buf->base, nread);
 
-  switch (client->read_state->state) {
-  case AllocateBufferLength:
-    if (client->read_state->current_offset != 4) {
-      client->read_state->state = FillBufferLength;
-      break;
-    }
-    /* FALLTHROUGH IF BUFFER IS FULL */
-  case FillBufferLength:
-    if (client->read_state->current_offset != 4) {
-      break;
-    }
-    client->read_state->buf_len =
-        read_uint64(client->read_state->buf_len_buffer);
-    free(client->read_state->buf_len_buffer);
-    client->read_state->state = AllocatePacketTypeLength;
-    client->read_state->current_offset = 0;
-    break;
+  if (!buffer_ready)
+    return;
 
-  case AllocatePacketTypeLength:
-    if (client->read_state->current_offset != 4) {
-      client->read_state->state = FillPacketTypeLength;
-      break;
-    }
-    /* FALLTHROUGH IF BUFFER IS FULL */
-  case FillPacketTypeLength:
-    if (client->read_state->current_offset != 4) {
-      break;
-    }
-    client->read_state->buf_len =
-        read_uint32(client->read_state->packet_type_buffer);
-    free(client->read_state->packet_type_buffer);
-    client->read_state->state = AllocateBuffer;
-    client->read_state->current_offset = 0;
+  switch (state->packet_type) {
+  case 1:
+    frame = unmarshal_cframe(state->buffer, state->buf_len);
+    dstack_push(client->frame_stack, (void *)frame, 1);
     break;
-
-  case AllocateBuffer:
-    if ((uint64_t)client->read_state->current_offset !=
-        client->read_state->buf_len) {
-      client->read_state->state = FillBuffer;
-      break;
-    }
-    /* FALLTHROUGH IF BUFFER IS FULL */
-  case FillBuffer:
-    if (client->read_state->current_offset != client->read_state->buf_len) {
-      break;
-    }
-    switch (client->read_state->packet_type) {
-    case 1:
-      frame = unmarshal_cframe(client->read_state->buffer,
-                               client->read_state->buf_len);
-      dstack_push(client->frame_stack, (void *)frame, 1);
-      break;
-    case 2:
-      ctrl = ctrl_unmarshal_control(client->read_state->buffer,
-                                    client->read_state->buf_len);
-      dstack_push(client->frame_stack, (void *)frame, 1);
-      break;
-    default:
-      printf("unknown packet type: %d\n", client->read_state->packet_type);
-      break;
-    }
-    free(client->read_state->buffer);
-    memset(client->read_state, 0, sizeof(*client->read_state));
-    break;
+  // TODO: move to server
+  // case 2:
+  //   ctrl = ctrl_unmarshal_control(state->buffer, state->buf_len);
+  //   dstack_push(client->frame_stack, (void *)frame, 1);
+  //   break;
   default:
-    if (buf->base)
-      free(buf->base);
+    printf("unknown/unhandled packet type: %d\n", state->packet_type);
     break;
   }
+
+  // TODO: dont think we need to free buf->base as we free it through the state
+  free(state->buffer);
+  memset(state, 0, sizeof(*state));
 }
 
 void write_stream(uv_stream_t *stream, char *data, int len2) {

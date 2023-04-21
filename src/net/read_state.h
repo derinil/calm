@@ -23,4 +23,7 @@ struct ReadState {
   uint32_t current_offset;
 };
 
+// on_read returns 1 when the final buffer is completely filled.
+int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer, uint32_t nread);
+
 #endif
