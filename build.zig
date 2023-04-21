@@ -42,6 +42,7 @@ var sourceFolders = [_][]const u8{
     basePath("/src/gui"),
     basePath("/src/net"),
     basePath("/src/cyborg"),
+    basePath("/src/util"),
     basePath("/src/data"),
     basePath("/deps/glad/src"),
 };

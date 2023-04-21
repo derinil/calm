@@ -98,24 +98,23 @@ ctrl : {
   ctrl_buffer = dstack_pop_all(server->ctrl_stack);
   if (!ctrl_buffer.length)
     return;
-  // TODO: release_all
-  // buf = serialize_cframe(frame);
-  // if (!buf)
-  //   return;
-  // // release_cframe(frame);
-  // req = calloc(1, sizeof(*req));
-  // req->data = server;
-  // wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-  // // we can free the buffer here without freeing the actual underlying char
-  // // array
-  // free(buf);
-  // if (!server->connected) {
-  //   free(buf->buffer);
-  //   free(req);
-  //   return;
-  // }
-  // uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
-  //          on_write_callback);
+  for (size_t i = 0; i < ctrl_buffer.length; i++) {
+    buf = ctrl_serialize_control(ctrl_buffer.elements[i]);
+    if (!buf)
+      continue;
+    ctrl_release_control(ctrl_buffer.elements[i]);
+    req = calloc(1, sizeof(*req));
+    req->data = server;
+    wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
+    free(buf);
+    if (!server->connected) {
+      free(buf->buffer);
+      free(req);
+      return;
+    }
+    uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
+             on_write_callback);
+  }
 }
 }
 

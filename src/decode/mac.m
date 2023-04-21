@@ -1,4 +1,5 @@
 #include "../capture/capture.h"
+#include "../util/util.h"
 #include "decode.h"
 #include <CoreFoundation/CoreFoundation.h>
 #define COREVIDEO_SILENCE_GL_DEPRECATION
@@ -37,23 +38,6 @@ struct MacDecodeContext {
   struct CFrame *cframe;
   uint8_t *condensed;
 };
-
-union USplitter {
-  uint32_t ull;
-  uint8_t bs[4];
-};
-
-void write_uint32(uint8_t *buf, uint32_t u) {
-  union USplitter split;
-  split.ull = u;
-  memcpy(buf, split.bs, 4);
-}
-
-uint32_t read_uint32(uint8_t *buf) {
-  union USplitter split;
-  memcpy(split.bs, buf, 4);
-  return split.ull;
-}
 
 uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len) {
   uint8_t *buf = NULL;

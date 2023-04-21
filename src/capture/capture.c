@@ -3,23 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-union ULLSplitter {
-  uint64_t ull;
-  uint8_t bs[8];
-};
-
-void write_uint64(uint8_t *buf, uint64_t u) {
-  union ULLSplitter split;
-  split.ull = u;
-  memcpy(buf, split.bs, 8);
-}
-
-uint64_t read_uint64(uint8_t *buf) {
-  union ULLSplitter split;
-  memcpy(split.bs, buf, 8);
-  return split.ull;
-}
+#include "../util/util.h"
 
 void retain_cframe(struct CFrame *frame) {
   atomic_fetch_add(&frame->refcount, 1);
@@ -27,7 +11,8 @@ void retain_cframe(struct CFrame *frame) {
 
 struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
-  uint64_t buf_len = 0;
+  uint32_t buf_len = 0;
+  uint32_t packet_type = 1;
   uint64_t buf_off = 0;
   struct SerializedBuffer *serbuf;
 
@@ -68,8 +53,11 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
 
   // Subtract the sizeof buf_len from buf_len so that buf_len is actually the
   // length of the frame
-  write_uint64(buf + buf_off, buf_len - sizeof(buf_len));
-  buf_off += 8;
+  write_uint32(buf + buf_off, buf_len - (sizeof(buf_len) + sizeof(packet_type)));
+  buf_off += sizeof(buf_len);
+
+  write_uint32(buf + buf_off, packet_type);
+  buf_off += sizeof(packet_type);
 
   write_uint64(buf + buf_off, frame->nalu_h_len);
   buf_off += 8;

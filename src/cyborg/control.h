@@ -1,6 +1,7 @@
 #ifndef CONTROL_H_
 #define CONTROL_H_
 
+#include "../capture/capture.h"
 #include <stddef.h>
 
 enum ControlSource {
@@ -17,9 +18,12 @@ enum ControlType {
 struct Control {
   enum ControlSource source;
   enum ControlType type;
-  int value;
-  int pos_x;
-  int pos_y;
+  uint32_t value;
+  uint32_t pos_x;
+  uint32_t pos_y;
 };
+
+void ctrl_release_control(struct Control **ctrl);
+struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl);
 
 #endif
