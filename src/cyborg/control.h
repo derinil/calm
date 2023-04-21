@@ -25,5 +25,6 @@ struct Control {
 
 void ctrl_release_control(struct Control **ctrl);
 struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl);
+struct Control *ctrl_unmarshal_control(uint8_t *buffer, uint32_t length);
 
 #endif

@@ -18,6 +18,7 @@ struct NetServer {
   uv_idle_t idle;
   uv_mutex_t mutex;
   uv_thread_t send_loop;
+  struct ReadState *read_state;
   // Stack for compressed frames
   struct DStack *frame_stack;
   // Stack for mouse/keyboard input

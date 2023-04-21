@@ -1,6 +1,9 @@
 #include "client.h"
 #include "../capture/capture.h"
+#include "../cyborg/control.h"
 #include "../data/stack.h"
+#include "../util/util.h"
+#include "read_state.h"
 #include "uv.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -10,7 +13,8 @@
 void on_connect(uv_connect_t *connection, int status);
 void on_close_cb(uv_handle_t *handle);
 
-struct NetClient *setup_client(struct DStack *stack) {
+struct NetClient *setup_client(struct DStack *frame_stack,
+                               struct DStack *ctrl_stack) {
   int err;
   struct NetClient *client;
   client = malloc(sizeof(*client));
@@ -18,7 +22,8 @@ struct NetClient *setup_client(struct DStack *stack) {
     return NULL;
   memset(client, 0, sizeof(*client));
   client->loop = uv_default_loop();
-  client->stack = stack;
+  client->frame_stack = frame_stack;
+  client->ctrl_stack = ctrl_stack;
   client->read_state = calloc(1, sizeof(*client->read_state));
   uv_cond_init(&client->cond);
   uv_mutex_init(&client->mutex);
@@ -52,32 +57,50 @@ int connect_client(struct NetClient *c, const char *ip) {
 static void read_cframe_alloc_cb(uv_handle_t *handle, size_t size,
                                  uv_buf_t *buf) {
   struct NetClient *client = (struct NetClient *)handle->data;
-  switch (client->read_state->state) {
-  case 0:
+  struct ReadState *read_state = client->read_state;
+  switch (read_state->state) {
+  case AllocateBufferLength:
     // Allocate 8 bytes to read the start of a cframe
-    client->read_state->buf_len_buffer =
-        malloc(sizeof(*client->read_state->buf_len_buffer) * 8);
-    *buf = uv_buf_init((char *)client->read_state->buf_len_buffer, 8);
+    read_state->buf_len_buffer =
+        malloc(sizeof(*read_state->buf_len_buffer) * 4);
+    *buf = uv_buf_init((char *)read_state->buf_len_buffer, 4);
     break;
-  case 1:
+  case FillBufferLength:
     // Fill up the allocated frame buffer length
-    *buf = uv_buf_init((char *)client->read_state->buf_len_buffer +
-                           client->read_state->buf_len_off,
-                       8 - client->read_state->buf_len_off);
+    read_state->current_offset = 0;
+    *buf = uv_buf_init((char *)read_state->buf_len_buffer +
+                           read_state->current_offset,
+                       8 - read_state->current_offset);
     break;
-  case 2:
+
+  case AllocatePacketTypeLength:
+    // Allocate 8 bytes to read the start of a cframe
+    read_state->packet_type_buffer =
+        malloc(sizeof(*read_state->packet_type_buffer) * 4);
+    *buf = uv_buf_init((char *)read_state->packet_type_buffer, 4);
+    break;
+  case FillPacketTypeLength:
+    // Fill up the allocated frame buffer length
+    read_state->current_offset = 0;
+    *buf = uv_buf_init((char *)read_state->packet_type_buffer +
+                           read_state->current_offset,
+                       8 - read_state->current_offset);
+    break;
+
+  case AllocateBuffer:
     // Allocate bytes required to read the frame
-    client->read_state->buffer = malloc(sizeof(*client->read_state->buffer) *
-                                        client->read_state->buf_len);
-    *buf = uv_buf_init((char *)client->read_state->buffer,
-                       client->read_state->buf_len);
+    read_state->buffer =
+        malloc(sizeof(*read_state->buffer) * read_state->buf_len);
+    *buf = uv_buf_init((char *)read_state->buffer, read_state->buf_len);
     break;
-  case 3:
+  case FillBuffer:
     // Fill up the allocated frame buffer
-    *buf = uv_buf_init(
-        (char *)(client->read_state->buffer + client->read_state->buf_off),
-        client->read_state->buf_len - client->read_state->buf_off);
+    read_state->current_offset = 0;
+    *buf =
+        uv_buf_init((char *)(read_state->buffer + read_state->current_offset),
+                    read_state->buf_len - read_state->current_offset);
     break;
+
   default:
     /* UNREACHABLE */
     break;
@@ -101,6 +124,7 @@ void on_write(uv_write_t *req, int status) {
 
 void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   struct CFrame *frame;
+  struct Control *ctrl;
   struct NetClient *client = (struct NetClient *)stream->data;
 
   if (nread < 0) {
@@ -111,40 +135,69 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
     }
   }
 
-  client->read_state->buf_off += nread;
+  client->read_state->current_offset += nread;
 
   switch (client->read_state->state) {
-  case 0:
-    if (client->read_state->buf_off != 8) {
-      client->read_state->state = 1;
+  case AllocateBufferLength:
+    if (client->read_state->current_offset != 4) {
+      client->read_state->state = FillBufferLength;
       break;
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
-  case 1:
-    if (client->read_state->buf_off != 8) {
+  case FillBufferLength:
+    if (client->read_state->current_offset != 4) {
       break;
     }
     client->read_state->buf_len =
         read_uint64(client->read_state->buf_len_buffer);
     free(client->read_state->buf_len_buffer);
-    client->read_state->state = 2;
-    client->read_state->buf_off = 0;
+    client->read_state->state = AllocatePacketTypeLength;
+    client->read_state->current_offset = 0;
     break;
-  case 2:
-    if ((uint64_t)client->read_state->buf_off != client->read_state->buf_len) {
-      client->read_state->state = 3;
+
+  case AllocatePacketTypeLength:
+    if (client->read_state->current_offset != 4) {
+      client->read_state->state = FillPacketTypeLength;
       break;
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
-  case 3:
-    // TODO: use != here, sometimes it overflows so ill keep it as < for now
-    if (client->read_state->buf_off != client->read_state->buf_len) {
+  case FillPacketTypeLength:
+    if (client->read_state->current_offset != 4) {
       break;
     }
-    // TODO: got -12712 once
-    frame = unmarshal_cframe(client->read_state->buffer,
-                             client->read_state->buf_len);
-    dstack_push(client->stack, (void *)frame, 1);
+    client->read_state->buf_len =
+        read_uint32(client->read_state->packet_type_buffer);
+    free(client->read_state->packet_type_buffer);
+    client->read_state->state = AllocateBuffer;
+    client->read_state->current_offset = 0;
+    break;
+
+  case AllocateBuffer:
+    if ((uint64_t)client->read_state->current_offset !=
+        client->read_state->buf_len) {
+      client->read_state->state = FillBuffer;
+      break;
+    }
+    /* FALLTHROUGH IF BUFFER IS FULL */
+  case FillBuffer:
+    if (client->read_state->current_offset != client->read_state->buf_len) {
+      break;
+    }
+    switch (client->read_state->packet_type) {
+    case 1:
+      frame = unmarshal_cframe(client->read_state->buffer,
+                               client->read_state->buf_len);
+      dstack_push(client->frame_stack, (void *)frame, 1);
+      break;
+    case 2:
+      ctrl = ctrl_unmarshal_control(client->read_state->buffer,
+                                    client->read_state->buf_len);
+      dstack_push(client->frame_stack, (void *)frame, 1);
+      break;
+    default:
+      printf("unknown packet type: %d\n", client->read_state->packet_type);
+      break;
+    }
     free(client->read_state->buffer);
     memset(client->read_state, 0, sizeof(*client->read_state));
     break;
