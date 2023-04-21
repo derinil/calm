@@ -54,57 +54,15 @@ int connect_client(struct NetClient *c, const char *ip) {
   return uv_run(c->loop, UV_RUN_DEFAULT);
 }
 
-static void read_cframe_alloc_cb(uv_handle_t *handle, size_t size,
+static void client_alloc_cb(uv_handle_t *handle, size_t size,
                                  uv_buf_t *buf) {
   struct NetClient *client = (struct NetClient *)handle->data;
   struct ReadState *read_state = client->read_state;
-  switch (read_state->state) {
-  case AllocateBufferLength:
-    // Allocate 8 bytes to read the start of a cframe
-    read_state->buf_len_buffer =
-        malloc(sizeof(*read_state->buf_len_buffer) * 4);
-    *buf = uv_buf_init((char *)read_state->buf_len_buffer, 4);
-    break;
-  case FillBufferLength:
-    // Fill up the allocated frame buffer length
-    read_state->current_offset = 0;
-    *buf = uv_buf_init((char *)read_state->buf_len_buffer +
-                           read_state->current_offset,
-                       8 - read_state->current_offset);
-    break;
+  uint8_t *buffer;
+  size_t length;
 
-  case AllocatePacketTypeLength:
-    // Allocate 8 bytes to read the start of a cframe
-    read_state->packet_type_buffer =
-        malloc(sizeof(*read_state->packet_type_buffer) * 4);
-    *buf = uv_buf_init((char *)read_state->packet_type_buffer, 4);
-    break;
-  case FillPacketTypeLength:
-    // Fill up the allocated frame buffer length
-    read_state->current_offset = 0;
-    *buf = uv_buf_init((char *)read_state->packet_type_buffer +
-                           read_state->current_offset,
-                       8 - read_state->current_offset);
-    break;
-
-  case AllocateBuffer:
-    // Allocate bytes required to read the frame
-    read_state->buffer =
-        malloc(sizeof(*read_state->buffer) * read_state->buf_len);
-    *buf = uv_buf_init((char *)read_state->buffer, read_state->buf_len);
-    break;
-  case FillBuffer:
-    // Fill up the allocated frame buffer
-    read_state->current_offset = 0;
-    *buf =
-        uv_buf_init((char *)(read_state->buffer + read_state->current_offset),
-                    read_state->buf_len - read_state->current_offset);
-    break;
-
-  default:
-    /* UNREACHABLE */
-    break;
-  }
+  read_state_alloc_buffer(read_state, &buffer, &length);
+  *buf = uv_buf_init((char *)buffer, length);
 }
 
 void on_close_cb(uv_handle_t *handle) {
@@ -125,14 +83,13 @@ void on_write(uv_write_t *req, int status) {
 void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   int buffer_ready = 0;
   struct CFrame *frame;
-  struct Control *ctrl;
   struct NetClient *client = (struct NetClient *)stream->data;
   struct ReadState *state = client->read_state;
 
   if (nread < 0) {
     if (nread != UV_EOF) {
       printf("Read error %d %s\n", state->state, uv_err_name(nread));
-      // uv_close((uv_handle_t *)stream, on_close_cb);
+      uv_close((uv_handle_t *)stream, on_close_cb);
     }
   }
 
@@ -146,11 +103,6 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
     frame = unmarshal_cframe(state->buffer, state->buf_len);
     dstack_push(client->frame_stack, (void *)frame, 1);
     break;
-  // TODO: move to server
-  // case 2:
-  //   ctrl = ctrl_unmarshal_control(state->buffer, state->buf_len);
-  //   dstack_push(client->frame_stack, (void *)frame, 1);
-  //   break;
   default:
     printf("unknown/unhandled packet type: %d\n", state->packet_type);
     break;
@@ -179,5 +131,5 @@ void on_connect(uv_connect_t *connection_req, int status) {
   client->tcp_stream->data = client;
   free(connection_req);
   write_stream(client->tcp_stream, "echo  world!", 12);
-  uv_read_start(client->tcp_stream, read_cframe_alloc_cb, on_read);
+  uv_read_start(client->tcp_stream, client_alloc_cb, on_read);
 }

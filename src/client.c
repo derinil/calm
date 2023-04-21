@@ -67,7 +67,7 @@ int start_client() {
     return 3;
 
   // TODO: rename to net_setup_client
-  net_client = setup_client(compressed_stack);
+  net_client = setup_client(compressed_stack, control_stack);
   if (!net_client)
     return 4;
 

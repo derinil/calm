@@ -2,6 +2,7 @@
 #include "../capture/capture.h"
 #include "../cyborg/control.h"
 #include "../data/stack.h"
+#include "read_state.h"
 #include "uv.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,9 +119,15 @@ ctrl : {
 }
 }
 
-void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
-  buf->base = malloc(suggested_size);
-  buf->len = suggested_size;
+static void server_alloc_cb(uv_handle_t *handle, size_t size,
+                                 uv_buf_t *buf) {
+  struct NetServer *server = (struct NetServer *)handle->data;
+  struct ReadState *read_state = server->read_state;
+  uint8_t *buffer;
+  size_t length;
+
+  read_state_alloc_buffer(read_state, &buffer, &length);
+  *buf = uv_buf_init((char *)buffer, length);
 }
 
 void on_write_callback(uv_write_t *req, int status) {
@@ -133,17 +140,36 @@ void on_write_callback(uv_write_t *req, int status) {
 }
 
 void on_read_callback(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
+  int buffer_ready = 0;
+  struct Control *ctrl;
   struct NetServer *server = (struct NetServer *)client->data;
+  struct ReadState *state = server->read_state;
+
   if (nread < 0) {
     if (nread != UV_EOF) {
-      printf("Read error %s\n", uv_err_name(nread));
+      printf("Read error %d %s\n", state->state, uv_err_name(nread));
       uv_close((uv_handle_t *)client, on_close_callback);
     }
   }
 
-  if (buf->base) {
-    free(buf->base);
+  buffer_ready = read_state_handle_buffer(state, (uint8_t *)buf->base, nread);
+
+  if (!buffer_ready)
+    return;
+
+  switch (state->packet_type) {
+  case 2:
+    ctrl = ctrl_unmarshal_control(state->buffer, state->buf_len);
+    dstack_push(server->ctrl_stack, (void *)ctrl, 1);
+    break;
+  default:
+    printf("unknown/unhandled packet type: %d\n", state->packet_type);
+    break;
   }
+
+  // TODO: dont think we need to free buf->base as we free it through the state
+  free(state->buffer);
+  memset(state, 0, sizeof(*state));
 }
 
 void on_close_callback(uv_handle_t *handle) {
@@ -184,7 +210,7 @@ void on_new_connection(uv_stream_t *stream, int status) {
   server->tcp_client->data = server;
   uv_mutex_unlock(&server->mutex);
   printf("connected\n");
-  uv_read_start((uv_stream_t *)client, alloc_buffer, on_read_callback);
+  uv_read_start((uv_stream_t *)client, server_alloc_cb, on_read_callback);
   uv_idle_start(&server->idle, net_send_frame);
   // uv_thread_create(&server->send_loop, net_send_frames_loop, server);
 }

@@ -2,7 +2,53 @@
 #include "../util/util.h"
 #include <stddef.h>
 
-int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer, uint32_t nread) {
+void read_state_alloc_buffer(struct ReadState *read_state, uint8_t **out_buffer,
+                             size_t *out_length) {
+  switch (read_state->state) {
+  case AllocateBufferLength:
+    read_state->buf_len_buffer =
+        malloc(sizeof(*read_state->buf_len_buffer) * 4);
+    *out_buffer = read_state->buf_len_buffer;
+    *out_length = 4;
+    return;
+  case FillBufferLength:
+    read_state->current_offset = 0;
+    *out_buffer = read_state->buf_len_buffer + read_state->current_offset;
+    *out_length = 4 - read_state->current_offset;
+    break;
+
+  case AllocatePacketTypeLength:
+    read_state->packet_type_buffer =
+        malloc(sizeof(*read_state->packet_type_buffer) * 4);
+    *out_buffer = read_state->packet_type_buffer;
+    *out_length = 4 - read_state->current_offset;
+    break;
+  case FillPacketTypeLength:
+    read_state->current_offset = 0;
+    *out_buffer = read_state->packet_type_buffer + read_state->current_offset;
+    *out_length = 4 - read_state->current_offset;
+    break;
+
+  case AllocateBuffer:
+    read_state->buffer =
+        malloc(sizeof(*read_state->buffer) * read_state->buf_len);
+    *out_buffer = read_state->buffer;
+    *out_length = 4 - read_state->buf_len;
+    break;
+  case FillBuffer:
+    read_state->current_offset = 0;
+    *out_buffer = read_state->buffer + read_state->current_offset;
+    *out_length = 4 - read_state->buf_len - read_state->current_offset;
+    break;
+
+  default:
+    /* UNREACHABLE */
+    break;
+  }
+}
+
+int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
+                             uint32_t nread) {
   state->current_offset += nread;
 
   switch (state->state) {

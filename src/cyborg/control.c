@@ -56,3 +56,41 @@ struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl) {
 
   return serbuf;
 }
+
+struct Control *ctrl_unmarshal_control(uint8_t *buffer, uint32_t length) {
+  uint8_t *buf;
+  uint32_t buf_len = 0;
+  uint32_t packet_type = 2;
+  uint64_t buf_off = 0;
+  struct Control *ctrl = calloc(1, sizeof(*ctrl));
+
+  buf_len = 0;
+  buf_len += sizeof(buf_len);
+  buf_len += sizeof(packet_type);
+  buf_len += sizeof(ctrl->source);
+  buf_len += sizeof(ctrl->type);
+  buf_len += sizeof(ctrl->value);
+  buf_len += sizeof(ctrl->pos_x);
+  buf_len += sizeof(ctrl->pos_y);
+
+  buf = calloc(buf_len, sizeof(*buf));
+  if (!buf)
+    return NULL;
+
+  buf_off = 0;
+
+  ctrl->source = read_uint32(buf + buf_off);
+  buf_off += sizeof(ctrl->source);
+  ctrl->type = read_uint32(buf + buf_off);
+  buf_off += sizeof(ctrl->type);
+  ctrl->value = read_uint32(buf + buf_off);
+  buf_off += sizeof(ctrl->value);
+  ctrl->pos_x = read_uint32(buf + buf_off);
+  buf_off += sizeof(ctrl->pos_x);
+  ctrl->pos_y = read_uint32(buf + buf_off);
+  buf_off += sizeof(ctrl->pos_y);
+
+  assert(buf_off == buf_len);
+
+  return ctrl;
+}
