@@ -92,6 +92,7 @@ struct Buffer dstack_pop_all(struct DStack *ds) {
   els = malloc(ds->length * sizeof(*els));
   for (size_t i = 0; i < ds->length; i++) {
     els[i] = ds->elements[ds->read_curr + i].actual;
+    ds->elements[ds->read_curr + i] = (struct DSElement){0};
   }
   length = ds->length;
   ds->length = 0;
