@@ -103,8 +103,9 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 
   switch (state->packet_type) {
   case 1:
-    printf("got cframe\n");
-    frame = unmarshal_cframe(state->buffer, state->buf_len);
+    // TODO: again we have some memory bug, its failing to decode the first
+    // frame
+    frame = unmarshal_cframe(state->buffer, state->buffer_len);
     dstack_push(client->frame_stack, (void *)frame, 1);
     break;
   default:

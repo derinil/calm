@@ -6,37 +6,26 @@
 void read_state_alloc_buffer(struct ReadState *read_state, uint8_t **out_buffer,
                              size_t *out_length) {
   switch (read_state->state) {
-  case AllocateBufferLength:
-    read_state->buf_len_buffer =
-        malloc(sizeof(*read_state->buf_len_buffer) * 4);
-    *out_buffer = read_state->buf_len_buffer;
-    *out_length = 4;
+  case AllocatePacketID:
+    read_state->packet_id_buffer =
+        calloc(8, sizeof(*read_state->packet_id_buffer));
+    *out_buffer = read_state->packet_id_buffer;
+    *out_length = 8;
     return;
-  case FillBufferLength:
-    *out_buffer = read_state->buf_len_buffer + read_state->current_offset;
-    *out_length = 4 - read_state->current_offset;
-    break;
-
-  case AllocatePacketTypeLength:
-    read_state->packet_type_buffer =
-        malloc(sizeof(*read_state->packet_type_buffer) * 4);
-    *out_buffer = read_state->packet_type_buffer;
-    *out_length = 4;
-    break;
-  case FillPacketTypeLength:
-    *out_buffer = read_state->packet_type_buffer + read_state->current_offset;
-    *out_length = 4 - read_state->current_offset;
+  case FillPacketID:
+    *out_buffer = read_state->packet_id_buffer + read_state->current_offset;
+    *out_length = 8 - read_state->current_offset;
     break;
 
   case AllocateBuffer:
     read_state->buffer =
-        malloc(read_state->buf_len * sizeof(*read_state->buffer));
+        calloc(read_state->buffer_len, sizeof(*read_state->buffer));
     *out_buffer = read_state->buffer;
-    *out_length = read_state->buf_len;
+    *out_length = read_state->buffer_len;
     break;
   case FillBuffer:
     *out_buffer = read_state->buffer + read_state->current_offset;
-    *out_length = read_state->buf_len - read_state->current_offset;
+    *out_length = read_state->buffer_len - read_state->current_offset;
     break;
 
   default:
@@ -50,46 +39,31 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
   state->current_offset += nread;
 
   switch (state->state) {
-  case AllocateBufferLength:
-    if (state->current_offset != 4) {
-      state->state = FillBufferLength;
+  case AllocatePacketID:
+    if (state->current_offset != 8) {
+      state->state = FillPacketID;
       break;
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
-  case FillBufferLength:
-    if (state->current_offset != 4) {
+  case FillPacketID:
+    if (state->current_offset != 8) {
       break;
     }
-    state->buf_len = read_uint32(state->buf_len_buffer);
-    free(state->buf_len_buffer);
-    state->state = AllocatePacketTypeLength;
-    state->current_offset = 0;
-    break;
-
-  case AllocatePacketTypeLength:
-    if (state->current_offset != 4) {
-      state->state = FillPacketTypeLength;
-      break;
-    }
-    /* FALLTHROUGH IF BUFFER IS FULL */
-  case FillPacketTypeLength:
-    if (state->current_offset != 4) {
-      break;
-    }
-    state->packet_type = read_uint32(state->packet_type_buffer);
-    free(state->packet_type_buffer);
+    read_packet_id(state->packet_id_buffer, &state->buffer_len,
+                   &state->packet_type);
+    free(state->packet_id_buffer);
     state->state = AllocateBuffer;
     state->current_offset = 0;
     break;
 
   case AllocateBuffer:
-    if ((uint64_t)state->current_offset != state->buf_len) {
+    if ((uint64_t)state->current_offset != state->buffer_len) {
       state->state = FillBuffer;
       break;
     }
     /* FALLTHROUGH IF BUFFER IS FULL */
   case FillBuffer:
-    if (state->current_offset != state->buf_len) {
+    if (state->current_offset != state->buffer_len) {
       break;
     }
     return 1;

@@ -25,5 +25,6 @@ uint32_t read_uint32(uint8_t *buf);
 // create_packet_id allocates a buffer of 8 bytes and puts the buffer length in
 // the first 4 and packet type in the next 4
 uint8_t *create_packet_id(uint32_t length, uint32_t packet_type);
+void read_packet_id(uint8_t *buffer, uint32_t *length, uint32_t *packet_type);
 
 #endif

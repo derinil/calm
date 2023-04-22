@@ -25,8 +25,13 @@ uint32_t read_uint32(uint8_t *buf) {
 }
 
 uint8_t *create_packet_id(uint32_t length, uint32_t packet_type) {
-  uint64_t id = (uint64_t)length << 32 | packet_type;
   uint8_t *buf = calloc(8, sizeof(*buf));
-  write_uint64(buf, id);
+  write_uint32(buf, length);
+  write_uint32(buf + 4, packet_type);
   return buf;
+}
+
+void read_packet_id(uint8_t *buffer, uint32_t *length, uint32_t *packet_type) {
+  *length = read_uint32(buffer);
+  *packet_type = read_uint32(buffer + 4);
 }

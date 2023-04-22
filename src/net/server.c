@@ -135,8 +135,8 @@ void on_read_callback(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
 
   switch (state->packet_type) {
   case 2:
-    // ctrl = ctrl_unmarshal_control(state->buffer, state->buf_len);
-    // dstack_push(server->ctrl_stack, (void *)ctrl, 1);
+    ctrl = ctrl_unmarshal_control(state->buffer, state->buffer_len);
+    dstack_push(server->ctrl_stack, (void *)ctrl, 1);
     break;
   default:
     printf("unknown/unhandled packet type: %d\n", state->packet_type);
