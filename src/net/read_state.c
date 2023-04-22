@@ -1,6 +1,7 @@
 #include "read_state.h"
 #include "../util/util.h"
 #include <stddef.h>
+#include <stdio.h>
 
 void read_state_alloc_buffer(struct ReadState *read_state, uint8_t **out_buffer,
                              size_t *out_length) {

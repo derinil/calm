@@ -1,8 +1,15 @@
 #ifndef CONTROL_H_
 #define CONTROL_H_
 
-#include "../capture/capture.h"
+#include "binn.h"
 #include <stddef.h>
+#include <stdint.h>
+
+struct SerializedControl {
+  binn *obj;
+  uint8_t *buffer;
+  size_t length;
+};
 
 enum ControlSource {
   Mouse = 0,
@@ -21,10 +28,13 @@ struct Control {
   uint32_t value;
   uint32_t pos_x;
   uint32_t pos_y;
+  uint32_t pos_x_delta;
+  uint32_t pos_y_delta;
 };
 
 void ctrl_release_control(struct Control **ctrl);
-struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl);
+struct SerializedControl ctrl_serialize_control(struct Control *ctrl);
 struct Control *ctrl_unmarshal_control(uint8_t *buffer, uint32_t length);
+void ctrl_release_serializedcontrol(struct SerializedControl *ctrl);
 
 #endif

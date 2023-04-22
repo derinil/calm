@@ -44,11 +44,13 @@ var sourceFolders = [_][]const u8{
     basePath("/src/cyborg"),
     basePath("/src/util"),
     basePath("/src/data"),
+    basePath("/deps/binn/src"),
     basePath("/deps/glad/src"),
 };
 
 var includePaths = [_][]const u8{
     basePath("/deps/nvenc"),
+    basePath("/deps/binn/src"),
 };
 
 var sourceFiles = [_][]const u8{

@@ -14,3 +14,6 @@
 [submodule "deps/glfw"]
 	path = deps/glfw
 	url = https://github.com/derinil/mach-glfw.git
+[submodule "deps/binn"]
+	path = deps/binn
+	url = https://github.com/liteserver/binn.git

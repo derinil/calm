@@ -124,10 +124,11 @@ void write_stream(uv_stream_t *stream, char *data, int len2) {
 }
 
 void net_send_ctrl(uv_idle_t *handle) {
-  uv_buf_t wrbuf;
+  uv_buf_t *uvbufs;
   uv_write_t *req;
+  uint8_t *packet_id;
   struct Control *ctrl;
-  struct SerializedBuffer *buf;
+  struct SerializedControl serctrl;
   struct Buffer ctrl_buffer;
   struct NetClient *client = (struct NetClient *)handle->data;
 
@@ -135,21 +136,20 @@ void net_send_ctrl(uv_idle_t *handle) {
   if (!ctrl_buffer.length)
     return;
   for (size_t i = 0; i < ctrl_buffer.length; i++) {
-    buf = ctrl_serialize_control(ctrl_buffer.elements[i]);
-    if (!buf)
-      continue;
+    serctrl = ctrl_serialize_control(ctrl_buffer.elements[i]);
     ctrl_release_control((struct Control **)&ctrl_buffer.elements[i]);
+    // TODO: #define packet types
+    packet_id = create_packet_id(serctrl.length, 2);
     req = calloc(1, sizeof(*req));
     req->data = client;
-    wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-    if (!client->connected) {
-      free(buf->buffer);
-      free(req);
-      free(buf);
-      return;
-    }
-    free(buf);
-    uv_write(req, (uv_stream_t *)client->tcp_socket, &wrbuf, 1, on_write);
+
+    uvbufs = (uv_buf_t[]){
+        {.base = (char *)packet_id, .len = 8},
+        {.base = (char *)serctrl.buffer, .len = serctrl.length},
+    };
+
+    uv_write(req, (uv_stream_t *)client->tcp_socket, uvbufs, 2, on_write);
+    ctrl_release_serializedcontrol(&serctrl);
   }
 }
 

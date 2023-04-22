@@ -91,6 +91,7 @@ void setup_video_renderer() {
 
 void draw_video_frame(struct DStack *stack) {
   int width = 0, height = 0;
+  // TODO: nonblock
   struct DFrame *dframe = (struct DFrame *)dstack_pop_block(stack);
   if (!dframe)
     return;

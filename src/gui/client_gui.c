@@ -3,6 +3,7 @@
 #include "../cyborg/control.h"
 #include "../data/stack.h"
 #include "window.h"
+#include <math.h>
 #include <stdlib.h>
 #define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
 #include "cimgui.h"
@@ -98,18 +99,25 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
   }
 }
 
-static void cursor_position_callback(GLFWwindow *window, double xpos,
-                                     double ypos) {
-  static double last_xpos, last_ypos;
+static void cursor_position_callback(GLFWwindow *window, double xpos_d,
+                                     double ypos_d) {
+  printf("%f %f\n", xpos_d, ypos_d);
+  // TODO: temporarily disabled until i figure out mouse pos
+  /*uint32_t xpos = (uint32_t)rint(xpos_d);
+  uint32_t ypos = (uint32_t)rint(ypos_d);
+  static uint32_t last_xpos;
+  static uint32_t last_ypos;
   struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
-  struct Control *ctrl = calloc(1, sizeof(*ctrl));
+  struct Control *ctrl = malloc(sizeof(*ctrl));
   ctrl->source = Mouse;
   ctrl->type = Move;
-  ctrl->pos_x = xpos - last_xpos;
-  ctrl->pos_y = ypos - last_ypos;
+  ctrl->pos_x = xpos;
+  ctrl->pos_y = ypos;
+  ctrl->pos_x_delta = xpos - last_xpos;
+  ctrl->pos_y_delta = ypos - last_ypos;
   dstack_push(ctrl_stack, ctrl, 1);
   last_xpos = xpos;
-  last_ypos = ypos;
+  last_ypos = ypos;*/
 }
 
 static void mouse_button_callback(GLFWwindow *window, int button, int action,

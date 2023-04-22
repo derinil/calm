@@ -23,3 +23,10 @@ uint32_t read_uint32(uint8_t *buf) {
   memcpy(split.bs, buf, 4);
   return split.ull;
 }
+
+uint8_t *create_packet_id(uint32_t length, uint32_t packet_type) {
+  uint64_t id = (uint64_t)length << 32 | packet_type;
+  uint8_t *buf = calloc(8, sizeof(*buf));
+  write_uint64(buf, id);
+  return buf;
+}
