@@ -1,5 +1,6 @@
 #include "capture.h"
 #include "../util/util.h"
+#include "binn.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,141 +10,98 @@ void retain_cframe(struct CFrame *frame) {
   atomic_fetch_add(&frame->refcount, 1);
 }
 
-struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
+void release_serialized_cframe(struct SerializedCFrame *serf) {
+  binn_free(serf->obj);
+}
+
+struct SerializedCFrame serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
   uint32_t buf_len = 0;
   static const uint32_t packet_type = 1;
   uint64_t buf_off = 0;
-  struct SerializedBuffer *serbuf;
+  struct SerializedCFrame *serbuf;
+  binn *obj = binn_object();
+  binn *list;
+  binn *subobj;
 
-  serbuf = malloc(sizeof(*serbuf));
-  if (!serbuf)
-    return NULL;
-  memset(serbuf, 0, sizeof(*serbuf));
+  binn_object_set_uint32(obj, "nalu_h_length", frame->nalu_h_len);
 
-  buf_len = 0;
-  // Length for buf_len itself
-  buf_len += sizeof(buf_len);
-  // Length for packet type
-  buf_len += sizeof(packet_type);
-  // Length for nalu_h_len
-  buf_len += sizeof(frame->nalu_h_len);
-
-  // Ps
-  buf_len += sizeof(frame->parameter_sets_count);
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    // Size of ps length
-    buf_len += sizeof(frame->parameter_sets_lengths[i]);
-    // Ps length
-    buf_len += frame->parameter_sets_lengths[i];
+  binn_object_set_uint32(obj, "ps_count", frame->parameter_sets_count);
+  if (frame->parameter_sets_count > 0) {
+    list = binn_list();
+    for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+      subobj = binn_object();
+      binn_object_set_uint32(subobj, "ps_length",
+                             frame->parameter_sets_lengths[i]);
+      binn_object_set_str(subobj, "ps_buffer",
+                          (char *)frame->parameter_sets[i]);
+      binn_list_add_object(list, subobj);
+    }
+    binn_object_set_list(obj, "pss", list);
   }
 
-  // Nalus
-  buf_len += sizeof(frame->nalus_count);
-  for (uint64_t i = 0; i < frame->nalus_count; i++) {
-    // Size of nalu length
-    buf_len += sizeof(frame->nalus_lengths[i]);
-    // Nalu length
-    buf_len += frame->nalus_lengths[i];
+  binn_object_set_uint32(obj, "nalus_count", frame->nalus_count);
+  if (frame->nalus_count > 0) {
+    list = binn_list();
+    for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+      subobj = binn_object();
+      binn_object_set_uint32(subobj, "nalu_length", frame->nalus_lengths[i]);
+      binn_object_set_str(subobj, "nalu_buffer", (char *)frame->nalus[i]);
+      binn_list_add_object(list, subobj);
+    }
+    binn_object_set_list(obj, "nalus", list);
   }
 
-  buf = calloc(buf_len, sizeof(*buf));
-  if (!buf)
-    return NULL;
-
-  buf_off = 0;
-
-  // Subtract the sizeof buf_len from buf_len so that buf_len is actually the
-  // length of the frame
-  write_uint32(buf + buf_off, buf_len - 8);
-  buf_off += 4;
-
-  write_uint32(buf + buf_off, packet_type);
-  buf_off += 4;
-
-  write_uint64(buf + buf_off, frame->nalu_h_len);
-  buf_off += 8;
-
-  write_uint64(buf + buf_off, frame->parameter_sets_count);
-  buf_off += 8;
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    write_uint64(buf + buf_off, frame->parameter_sets_lengths[i]);
-    buf_off += 8;
-    memcpy(buf + buf_off, frame->parameter_sets[i],
-           frame->parameter_sets_lengths[i]);
-    buf_off += frame->parameter_sets_lengths[i];
-  }
-
-  write_uint64(buf + buf_off, frame->nalus_count);
-  buf_off += 8;
-  for (uint64_t i = 0; i < frame->nalus_count; i++) {
-    write_uint64(buf + buf_off, frame->nalus_lengths[i]);
-    buf_off += 8;
-    memcpy(buf + buf_off, frame->nalus[i], frame->nalus_lengths[i]);
-    buf_off += frame->nalus_lengths[i];
-  }
-
-  assert(buf_off == buf_len);
-
-  serbuf->buffer = buf;
-  serbuf->length = buf_len;
-
-  return serbuf;
+  return (struct SerializedCFrame){
+      .obj = obj,
+      .buffer = binn_ptr(obj),
+      .length = binn_size(obj),
+  };
 }
 
-void release_serbuf_cframe(struct SerializedBuffer *buffer) {
-  free(buffer->buffer);
-  free(buffer);
-}
-
-struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
-  uint64_t off = 0;
+struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length) {
+  binn *obj;
+  binn *list;
+  binn *subobj;
   struct CFrame *frame = calloc(1, sizeof(*frame));
 
-  off = 0;
+  obj = binn_open(buffer);
 
-  frame->nalu_h_len = read_uint64(buffer + off);
-  off += 8;
+  frame->nalu_h_len = binn_object_uint32(obj, "nalu_h_length");
 
-  frame->parameter_sets_count = read_uint64(buffer + off);
-  off += 8;
+  frame->parameter_sets_count = binn_object_uint32(obj, "ps_count");
 
-  frame->is_keyframe = frame->parameter_sets_count > 0;
-
-  frame->parameter_sets_lengths = malloc(
-      sizeof(*frame->parameter_sets_lengths) * frame->parameter_sets_count);
-  frame->parameter_sets =
-      malloc(sizeof(*frame->parameter_sets) * frame->parameter_sets_count);
-
-  for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-    frame->parameter_sets_lengths[i] = read_uint64(buffer + off);
-    off += 8;
-
-    frame->parameter_sets[i] = malloc(sizeof(*frame->parameter_sets[i]) *
-                                      frame->parameter_sets_lengths[i]);
-    memcpy(frame->parameter_sets[i], buffer + off,
-           frame->parameter_sets_lengths[i]);
-    off += frame->parameter_sets_lengths[i];
+  if (frame->parameter_sets_count > 0) {
+    frame->is_keyframe = 1;
+    frame->parameter_sets_lengths = calloc(
+        frame->parameter_sets_count, sizeof(*frame->parameter_sets_lengths));
+    frame->parameter_sets =
+        calloc(frame->parameter_sets_count, sizeof(*frame->parameter_sets));
+    list = binn_object_list(obj, "pss");
+    for (uint32_t i = 0; i < frame->parameter_sets_count; i++) {
+      subobj = binn_list_object(list, i);
+      frame->parameter_sets_lengths[i] =
+          binn_object_uint32(subobj, "ps_length");
+      frame->parameter_sets[i] =
+          (uint8_t *)binn_object_str(subobj, "ps_buffer");
+    }
   }
 
-  frame->nalus_count = read_uint64(buffer + off);
-  off += 8;
+  frame->nalus_count = binn_object_uint32(obj, "nalus_count");
 
-  frame->nalus_lengths =
-      malloc(sizeof(*frame->nalus_lengths) * frame->nalus_count);
-  frame->nalus = malloc(sizeof(*frame->nalus) * frame->nalus_count);
-
-  for (uint64_t i = 0; i < frame->nalus_count; i++) {
-    frame->nalus_lengths[i] = read_uint64(buffer + off);
-    off += 8;
-
-    frame->nalus[i] =
-        malloc(sizeof(*frame->nalus[i]) * frame->nalus_lengths[i]);
-    memcpy(frame->nalus[i], buffer + off, frame->nalus_lengths[i]);
-    off += frame->nalus_lengths[i];
+  if (frame->nalus_count > 0) {
+    frame->nalus_lengths =
+        calloc(frame->nalus_count, sizeof(*frame->nalus_lengths));
+    frame->nalus = calloc(frame->nalus_count, sizeof(*frame->nalus));
+    list = binn_object_list(obj, "nalus");
+    for (uint32_t i = 0; i < frame->nalus_count; i++) {
+      subobj = binn_list_object(list, i);
+      frame->nalus_lengths[i] = binn_object_uint32(subobj, "nalu_length");
+      frame->nalus[i] = (uint8_t *)binn_object_str(subobj, "nalu_buffer");
+    }
   }
 
-  assert(off == length);
+  binn_free(obj);
 
   return frame;
 }

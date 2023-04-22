@@ -2,6 +2,7 @@
 #include "../capture/capture.h"
 #include "../cyborg/control.h"
 #include "../data/stack.h"
+#include "../util/util.h"
 #include "read_state.h"
 #include "uv.h"
 #include <stdio.h>
@@ -66,34 +67,30 @@ int net_start_server(struct NetServer *server) {
 }
 
 void net_send_frame(uv_idle_t *handle) {
-  uv_buf_t wrbuf;
+  uv_buf_t *uvbufs;
   uv_write_t *req;
+  uint8_t *packet_id;
   struct CFrame *frame = NULL;
-  struct SerializedBuffer *buf = NULL;
+  struct SerializedCFrame serfc;
   struct NetServer *server = (struct NetServer *)handle->data;
 
   frame = (struct CFrame *)dstack_pop_nonblock(server->frame_stack);
   if (!frame || !frame->nalus_count)
     return;
-  buf = serialize_cframe(frame);
-  if (!buf)
-    return;
+  serfc = serialize_cframe(frame);
   release_cframe(&frame);
+  packet_id = create_packet_id(serfc.length, 1);
   req = calloc(1, sizeof(*req));
   req->data = server;
-  wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-  // we can free the buffer here without freeing the actual underlying char
-  // array
-  if (!server->connected) {
-    free(buf->buffer);
-    free(req);
-    free(buf);
-    return;
-  }
-  free(buf);
-  buf = NULL;
-  uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
+
+  uvbufs = (uv_buf_t[]){
+      {.base = (char *)packet_id, .len = 8},
+      {.base = (char *)serfc.buffer, .len = serfc.length},
+  };
+
+  uv_write(req, (uv_stream_t *)server->tcp_client, uvbufs, 2,
            on_write_callback);
+  release_serialized_cframe(&serfc);
 }
 
 static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {

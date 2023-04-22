@@ -1,22 +1,23 @@
 #ifndef CAPTURE_H_
 #define CAPTURE_H_
 
+#include "binn.h"
+#include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdatomic.h>
 
 // We conditionally compile the implementations based on the platform.
 
 // TODO: combine ps and nalus all into one array
 struct CFrame {
   int is_keyframe;
-  uint64_t nalu_h_len;
+  uint32_t nalu_h_len;
   uint8_t **parameter_sets;
-  uint64_t parameter_sets_count;
-  uint64_t *parameter_sets_lengths;
+  uint32_t parameter_sets_count;
+  uint32_t *parameter_sets_lengths;
   uint8_t **nalus;
-  uint64_t nalus_count;
-  uint64_t *nalus_lengths;
+  uint32_t nalus_count;
+  uint32_t *nalus_lengths;
   // adhoc reference count, starts from 2 by default
   atomic_int refcount;
 };
@@ -47,15 +48,14 @@ int stop_capture(struct Capturer *capturer);
 void retain_cframe(struct CFrame *frame);
 void release_cframe(struct CFrame **frame_ptr);
 
-struct SerializedBuffer {
+struct SerializedCFrame {
+  binn *obj;
   uint8_t *buffer;
-  uint64_t length;
+  size_t length;
 };
 
-struct SerializedBuffer *serialize_cframe(struct CFrame *frame);
-void release_serbuf_cframe(struct SerializedBuffer *buffer);
-uint64_t read_uint64(uint8_t *buf);
-struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length);
-uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len);
+struct SerializedCFrame serialize_cframe(struct CFrame *frame);
+void release_serialized_cframe(struct SerializedCFrame *buffer);
+struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length);
 
 #endif

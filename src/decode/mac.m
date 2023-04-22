@@ -39,21 +39,21 @@ struct MacDecodeContext {
   uint8_t *condensed;
 };
 
-uint8_t *condense_nalus(struct CFrame *frame, uint64_t *len) {
+uint8_t *condense_nalus(struct CFrame *frame, uint32_t *len) {
   uint8_t *buf = NULL;
   uint32_t swapped = 0;
-  uint64_t total_len = 0;
-  uint64_t buf_off = 0;
+  uint32_t total_len = 0;
+  uint32_t buf_off = 0;
   static const int avcc_h_len = 4;
 
-  for (uint64_t i = 0; i < frame->nalus_count; i++)
+  for (uint32_t i = 0; i < frame->nalus_count; i++)
     total_len += avcc_h_len + frame->nalus_lengths[i];
 
   buf = calloc(total_len, sizeof(*buf));
   if (!buf)
     return NULL;
 
-  for (uint64_t i = 0; i < frame->nalus_count; i++) {
+  for (uint32_t i = 0; i < frame->nalus_count; i++) {
     swapped = CFSwapInt32HostToBig(frame->nalus_lengths[i]);
     write_uint32(buf + buf_off, swapped);
     buf_off += avcc_h_len;
@@ -134,7 +134,7 @@ create_sample_buffer(CMFormatDescriptionRef format_description,
   CMBlockBufferRef block_buf = NULL;
   CMSampleBufferRef sample_buf = NULL;
 
-  uint64_t condensed_len;
+  uint32_t condensed_len;
   uint8_t *condensed = condense_nalus(frame, &condensed_len);
   if (!condensed)
     return NULL;
