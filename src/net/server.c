@@ -84,12 +84,14 @@ void net_send_frame(uv_idle_t *handle) {
   wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
   // we can free the buffer here without freeing the actual underlying char
   // array
-  free(buf);
   if (!server->connected) {
     free(buf->buffer);
     free(req);
+    free(buf);
     return;
   }
+  free(buf);
+  buf = NULL;
   uv_write(req, (uv_stream_t *)server->tcp_client, &wrbuf, 1,
            on_write_callback);
 }
@@ -121,8 +123,8 @@ void on_read_callback(uv_stream_t *client, ssize_t nread, const uv_buf_t *buf) {
 
   if (nread < 0) {
     if (nread != UV_EOF) {
-      printf("Read error %d %s\n", state->state, uv_err_name(nread));
-      uv_close((uv_handle_t *)client, on_close_callback);
+      printf("read error %d %s\n", state->state, uv_err_name(nread));
+      // uv_close((uv_handle_t *)client, on_close_callback);
     }
   }
 

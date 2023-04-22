@@ -91,8 +91,8 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 
   if (nread < 0) {
     if (nread != UV_EOF) {
-      printf("Read error %d %s\n", state->state, uv_err_name(nread));
-      uv_close((uv_handle_t *)stream, on_close_cb);
+      printf("read error %d %s\n", state->state, uv_err_name(nread));
+      // uv_close((uv_handle_t *)stream, on_close_cb);
     }
   }
 
@@ -103,6 +103,7 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
 
   switch (state->packet_type) {
   case 1:
+    printf("got cframe\n");
     frame = unmarshal_cframe(state->buffer, state->buf_len);
     dstack_push(client->frame_stack, (void *)frame, 1);
     break;
@@ -137,16 +138,19 @@ void net_send_ctrl(uv_idle_t *handle) {
     buf = ctrl_serialize_control(ctrl_buffer.elements[i]);
     if (!buf)
       continue;
-    ctrl_release_control(ctrl_buffer.elements[i]);
+    free(ctrl_buffer.elements[i]);
+    // TODO: broken -> ctrl_release_control((struct Control
+    // **)&ctrl_buffer.elements[i]);
     req = calloc(1, sizeof(*req));
     req->data = client;
     wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
-    free(buf);
     if (!client->connected) {
       free(buf->buffer);
       free(req);
+      free(buf);
       return;
     }
+    free(buf);
     uv_write(req, (uv_stream_t *)client->tcp_socket, &wrbuf, 1, on_write);
   }
 }

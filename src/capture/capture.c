@@ -32,12 +32,6 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
   // Ps
   buf_len += sizeof(frame->parameter_sets_count);
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-#if 0
-    for (uint64_t x = 0; x < frame->parameter_sets_lengths[i]; x++) {
-      printf("%x", frame->parameter_sets[i][x]);
-    }
-    printf("\n");
-#endif
     // Size of ps length
     buf_len += sizeof(frame->parameter_sets_lengths[i]);
     // Ps length
@@ -61,8 +55,7 @@ struct SerializedBuffer *serialize_cframe(struct CFrame *frame) {
 
   // Subtract the sizeof buf_len from buf_len so that buf_len is actually the
   // length of the frame
-  write_uint32(buf + buf_off,
-               buf_len - (sizeof(buf_len) - sizeof(packet_type)));
+  write_uint32(buf + buf_off, buf_len - 8);
   buf_off += 4;
 
   write_uint32(buf + buf_off, packet_type);

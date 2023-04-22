@@ -12,7 +12,6 @@ void read_state_alloc_buffer(struct ReadState *read_state, uint8_t **out_buffer,
     *out_length = 4;
     return;
   case FillBufferLength:
-    read_state->current_offset = 0;
     *out_buffer = read_state->buf_len_buffer + read_state->current_offset;
     *out_length = 4 - read_state->current_offset;
     break;
@@ -21,24 +20,22 @@ void read_state_alloc_buffer(struct ReadState *read_state, uint8_t **out_buffer,
     read_state->packet_type_buffer =
         malloc(sizeof(*read_state->packet_type_buffer) * 4);
     *out_buffer = read_state->packet_type_buffer;
-    *out_length = 4 - read_state->current_offset;
+    *out_length = 4;
     break;
   case FillPacketTypeLength:
-    read_state->current_offset = 0;
     *out_buffer = read_state->packet_type_buffer + read_state->current_offset;
     *out_length = 4 - read_state->current_offset;
     break;
 
   case AllocateBuffer:
     read_state->buffer =
-        malloc(sizeof(*read_state->buffer) * read_state->buf_len);
+        malloc(read_state->buf_len * sizeof(*read_state->buffer));
     *out_buffer = read_state->buffer;
-    *out_length = 4 - read_state->buf_len;
+    *out_length = read_state->buf_len;
     break;
   case FillBuffer:
-    read_state->current_offset = 0;
     *out_buffer = read_state->buffer + read_state->current_offset;
-    *out_length = 4 - read_state->buf_len - read_state->current_offset;
+    *out_length = read_state->buf_len - read_state->current_offset;
     break;
 
   default:
@@ -62,7 +59,7 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
     if (state->current_offset != 4) {
       break;
     }
-    state->buf_len = read_uint64(state->buf_len_buffer);
+    state->buf_len = read_uint32(state->buf_len_buffer);
     free(state->buf_len_buffer);
     state->state = AllocatePacketTypeLength;
     state->current_offset = 0;
@@ -78,7 +75,7 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
     if (state->current_offset != 4) {
       break;
     }
-    state->buf_len = read_uint32(state->packet_type_buffer);
+    state->packet_type = read_uint32(state->packet_type_buffer);
     free(state->packet_type_buffer);
     state->state = AllocateBuffer;
     state->current_offset = 0;
@@ -95,7 +92,6 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
       break;
     }
     return 1;
-    break;
   default:
     break;
   }
