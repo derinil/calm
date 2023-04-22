@@ -34,7 +34,7 @@ struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl) {
 
   buf_off = 0;
 
-  write_uint32(buf + buf_off, buf_len - sizeof(buf_len));
+  write_uint32(buf + buf_off, buf_len - 8);
   buf_off += sizeof(buf_len);
   write_uint32(buf + buf_off, packet_type);
   buf_off += sizeof(packet_type);
@@ -59,21 +59,11 @@ struct SerializedBuffer *ctrl_serialize_control(struct Control *ctrl) {
 
 struct Control *ctrl_unmarshal_control(uint8_t *buffer, uint32_t length) {
   uint8_t *buf;
-  uint32_t buf_len = 0;
   uint32_t packet_type = 2;
   uint64_t buf_off = 0;
   struct Control *ctrl = calloc(1, sizeof(*ctrl));
 
-  buf_len = 0;
-  buf_len += sizeof(buf_len);
-  buf_len += sizeof(packet_type);
-  buf_len += sizeof(ctrl->source);
-  buf_len += sizeof(ctrl->type);
-  buf_len += sizeof(ctrl->value);
-  buf_len += sizeof(ctrl->pos_x);
-  buf_len += sizeof(ctrl->pos_y);
-
-  buf = calloc(buf_len, sizeof(*buf));
+  buf = calloc(length, sizeof(*buf));
   if (!buf)
     return NULL;
 
@@ -90,7 +80,7 @@ struct Control *ctrl_unmarshal_control(uint8_t *buffer, uint32_t length) {
   ctrl->pos_y = read_uint32(buf + buf_off);
   buf_off += sizeof(ctrl->pos_y);
 
-  assert(buf_off == buf_len);
+  assert(buf_off == length);
 
   return ctrl;
 }
