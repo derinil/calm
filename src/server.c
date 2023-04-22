@@ -23,7 +23,6 @@ void frame_callback(struct CFrame *frame) {
   dstack_push(g_server->compressed_stack, frame, 1);
   // Lower priority on the server
   decode_frame(g_server->decoder, frame);
-  release_cframe(&frame);
 }
 
 void capture_thread(void *vargs) {

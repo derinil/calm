@@ -36,7 +36,7 @@ void dstack_push(struct DStack *ds, void *element, int remove_at) {
 
 void *dstack_pop_nonblock(struct DStack *ds) {
   void *el = NULL;
-  struct DSElement *element;
+  struct DSElement *element = NULL;
   uv_mutex_lock(&ds->mutex);
   if (ds->length == 0)
     goto end;

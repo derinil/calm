@@ -68,18 +68,17 @@ int net_start_server(struct NetServer *server) {
 void net_send_frame(uv_idle_t *handle) {
   uv_buf_t wrbuf;
   uv_write_t *req;
-  struct CFrame *frame;
-  struct SerializedBuffer *buf;
-  struct Buffer ctrl_buffer;
+  struct CFrame *frame = NULL;
+  struct SerializedBuffer *buf = NULL;
   struct NetServer *server = (struct NetServer *)handle->data;
 
   frame = (struct CFrame *)dstack_pop_nonblock(server->frame_stack);
-  if (!frame || frame->nalus_count == 0)
+  if (!frame || !frame->nalus_count)
     return;
   buf = serialize_cframe(frame);
   if (!buf)
     return;
-  // release_cframe(frame);
+  release_cframe(&frame);
   req = calloc(1, sizeof(*req));
   req->data = server;
   wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
