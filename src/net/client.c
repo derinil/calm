@@ -138,9 +138,7 @@ void net_send_ctrl(uv_idle_t *handle) {
     buf = ctrl_serialize_control(ctrl_buffer.elements[i]);
     if (!buf)
       continue;
-    free(ctrl_buffer.elements[i]);
-    // TODO: broken -> ctrl_release_control((struct Control
-    // **)&ctrl_buffer.elements[i]);
+    ctrl_release_control((struct Control **)&ctrl_buffer.elements[i]);
     req = calloc(1, sizeof(*req));
     req->data = client;
     wrbuf = uv_buf_init((char *)buf->buffer, buf->length);
