@@ -1,73 +1,69 @@
 #include "capture.h"
 #include "../util/util.h"
 #include "binn.h"
+#include "tpl.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 void release_serialized_cframe(struct SerializedCFrame *serf) {
-  binn_free(serf->obj);
+  // TODO:
+  free(serf->obj);
+  free(serf->buffer);
   free(serf);
 }
-
 struct SerializedCFrame *serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
   uint64_t buf_len = 0;
   static const uint64_t packet_type = 1;
   uint64_t buf_off = 0;
   struct SerializedCFrame *serbuf;
-  binn *obj = binn_object();
-  binn *lone, *ltwo;
+  tpl_node *root;
 
-  binn_object_set_uint64(obj, "nalu_h_length", frame->nalu_h_len);
+  cJSON_AddNumberToObject(obj, "nalu_h_length", frame->nalu_h_len);
 
-  binn_object_set_uint64(obj, "ps_count", frame->parameter_sets_count);
+  cJSON_AddNumberToObject(obj, "ps_count", frame->parameter_sets_count);
   if (frame->parameter_sets_count > 0) {
-    lone = binn_list();
-    ltwo = binn_list();
+    list = cJSON_AddArrayToObject(obj, "ps_list");
     for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
-      printf("adding to lists\n");
-      binn_list_add_uint64(lone, frame->parameter_sets_lengths[i]);
-      binn_list_add_str(ltwo, (char *)frame->parameter_sets[i]);
+      subobj = cJSON_CreateObject();
+      cJSON_AddNumberToObject(subobj, "length",
+                              frame->parameter_sets_lengths[i]);
+      cJSON_AddStringToObject(subobj, "buffer",
+                              (char *)frame->parameter_sets[i]);
+      cJSON_AddItemToArray(list, subobj);
     }
-    int good = binn_object_set_list(obj, "ps_lengths", lone);
-    if (!good)
-      printf("failed to set list\n");
-    // binn_object_set_list(obj, "ps_buffers", ltwo);
-    binn_free(lone);
-    binn_free(ltwo);
   }
 
-  binn_object_set_uint64(obj, "nalus_count", frame->nalus_count);
-  if (frame->nalus_count > 0) {
-    lone = binn_list();
-    ltwo = binn_list();
-    for (uint64_t i = 0; i < frame->nalus_count; i++) {
-      binn_list_add_uint64(lone, frame->nalus_lengths[i]);
-      binn_list_add_str(ltwo, (char *)frame->nalus[i]);
-    }
-    // binn_object_set_list(obj, "nalu_lengths", lone);
-    // binn_object_set_list(obj, "nalu_buffers", ltwo);
-    binn_free(lone);
-    binn_free(ltwo);
-  }
+  // cJSON_AddNumberToObject(obj, "nalus_count", frame->nalus_count);
+  // if (frame->nalus_count > 0) {
+  //   lone = binn_list();
+  //   ltwo = binn_list();
+  //   for (uint64_t i = 0; i < frame->nalus_count; i++) {
+  //     binn_list_add_uint64(lone, frame->nalus_lengths[i]);
+  //     binn_list_add_str(ltwo, (char *)frame->nalus[i]);
+  //   }
+  //   // binn_object_set_list(obj, "nalu_lengths", lone);
+  //   // binn_object_set_list(obj, "nalu_buffers", ltwo);
+  //   binn_free(lone);
+  //   binn_free(ltwo);
+  // }
 
   struct SerializedCFrame *ser = calloc(1, sizeof(*ser));
   ser->obj = obj;
-  ser->buffer = binn_ptr(obj);
-  ser->length = binn_size(obj);
+  ser->buffer = (uint8_t *)cJSON_PrintUnformatted(obj);
+  ser->length = cjson_get(obj);
 
 #if 1
   char *nb = malloc(ser->length * sizeof(*nb));
   memcpy(nb, ser->buffer, ser->length);
   printf("yoo \n");
-  binn *no = binn_open(nb);
-  printf("yoo dude\n");
-  uint64_t psc = binn_object_uint64(no, "ps_count");
+  uint64_t psc = binn_object_uint64(nb, "ps_count");
   printf("got count %llu\n", psc);
-  binn *nl = binn_object_list(no, "ps_lengths");
-  printf("cc p list count %d\n", binn_count(nl));
+  binn *nl = binn_object_list(nb, "ps_lengths");
+  printf("got length %llu\n", binn_list_uint64(nl, 1));
+  // printf("cc p list count %d\n", binn_count(nl));
 #endif
 
   return ser;

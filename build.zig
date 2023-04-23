@@ -44,13 +44,17 @@ var sourceFolders = [_][]const u8{
     basePath("/src/cyborg"),
     basePath("/src/util"),
     basePath("/src/data"),
+    // External
     basePath("/deps/binn/src"),
+    basePath("/deps/tpl/src"),
     basePath("/deps/glad/src"),
 };
 
 var includePaths = [_][]const u8{
+    // External
     basePath("/deps/nvenc"),
     basePath("/deps/binn/src"),
+    basePath("/deps/mpack/src"),
 };
 
 var sourceFiles = [_][]const u8{
