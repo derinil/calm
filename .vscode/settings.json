@@ -8,7 +8,7 @@
         "-I${workspaceFolder}/deps/nvenc",
         "-I${workspaceFolder}/deps/h264bsd/src",
         "-I${workspaceFolder}/deps/robotc/src",
-        "-I${workspaceFolder}/deps/mpack/src"
+        "-I${workspaceFolder}/deps/mpack/src/mpack"
     ],
     "editor.tabSize": 2
 }

@@ -45,8 +45,7 @@ var sourceFolders = [_][]const u8{
     basePath("/src/util"),
     basePath("/src/data"),
     // External
-    basePath("/deps/binn/src"),
-    basePath("/deps/tpl/src"),
+    basePath("/deps/mpack/src/mpack"),
     basePath("/deps/glad/src"),
 };
 
@@ -54,7 +53,7 @@ var includePaths = [_][]const u8{
     // External
     basePath("/deps/nvenc"),
     basePath("/deps/binn/src"),
-    basePath("/deps/mpack/src"),
+    basePath("/deps/mpack/src/mpack"),
 };
 
 var sourceFiles = [_][]const u8{

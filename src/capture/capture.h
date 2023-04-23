@@ -1,7 +1,6 @@
 #ifndef CAPTURE_H_
 #define CAPTURE_H_
 
-#include "cJSON.h"
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -47,7 +46,6 @@ int stop_capture(struct Capturer *capturer);
 void release_cframe(struct CFrame **frame_ptr);
 
 struct SerializedCFrame {
-  cJSON *obj;
   uint8_t *buffer;
   size_t length;
 };
