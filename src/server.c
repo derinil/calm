@@ -18,11 +18,20 @@ void server_decompressed_frame_callback(struct DFrame *dframe) {
 }
 
 void frame_callback(struct CFrame *frame) {
-  retain_cframe(frame);
-  retain_cframe(frame);
+#if 1
+  printf("ps: ");
+  for (uint32_t i = 0; i < frame->parameter_sets_count; i++) {
+    for (uint32_t j = 0; j < frame->parameter_sets_lengths[i]; j++) {
+      printf("%x", frame->parameter_sets[i][j]);
+    }
+    printf("\n");
+  }
+#endif
+#if 1
+  struct CFrame *clone = clone_cframe(frame);
+  decode_frame(g_server->decoder, clone);
+#endif
   dstack_push(g_server->compressed_stack, frame, 1);
-  // Lower priority on the server
-  decode_frame(g_server->decoder, frame);
 }
 
 void capture_thread(void *vargs) {

@@ -42,9 +42,6 @@ struct MacCFrame {
 
 void release_cframe(struct CFrame **frame_ptr) {
   struct CFrame *frame = *frame_ptr;
-  atomic_fetch_sub(&frame->refcount, 1);
-  if (frame->refcount > 0)
-    return;
   NSMutableData *data;
   struct MacCFrame *this = (struct MacCFrame *)frame;
   for (size_t x = 0; x < this->datas_len; x++) {
@@ -52,8 +49,11 @@ void release_cframe(struct CFrame **frame_ptr) {
     [data release];
   }
   CFRelease(this->block_buffer);
+  free(frame->nalus);
+  free(frame->nalus_lengths);
   free(frame->parameter_sets);
   free(frame->parameter_sets_lengths);
+  free(this->datas);
   free(this);
   *frame_ptr = NULL;
 }
@@ -62,7 +62,6 @@ struct MacCFrame *init_mac_cframe() {
   struct MacCFrame *frame = calloc(1, sizeof(*frame));
   if (!frame)
     return NULL;
-  frame->frame.refcount = ATOMIC_VAR_INIT(0);
   return frame;
 }
 
@@ -153,8 +152,8 @@ void compressed_frame_callback(void *output_callback_ref_con,
   CMBlockBufferGetDataPointer(block_buffer, 0, NULL, &block_buffer_length,
                               (char **)&buffer);
 
-  uint64_t buf_off = 0;
-  static const uint64_t avcc_h_len = 4;
+  uint32_t buf_off = 0;
+  static const uint32_t avcc_h_len = 4;
 
   while (buf_off < block_buffer_length - avcc_h_len) {
     // Read the NAL unit length

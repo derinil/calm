@@ -6,10 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-void retain_cframe(struct CFrame *frame) {
-  atomic_fetch_add(&frame->refcount, 1);
-}
-
 void release_serialized_cframe(struct SerializedCFrame *serf) {
   binn_free(serf->obj);
 }
@@ -104,4 +100,36 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length) {
   binn_free(obj);
 
   return frame;
+}
+
+struct CFrame *clone_cframe(struct CFrame *frame) {
+  struct CFrame *clone = calloc(1, sizeof(*clone));
+
+  clone->nalu_h_len = frame->nalu_h_len;
+  clone->is_keyframe = frame->is_keyframe;
+
+  clone->parameter_sets_count = frame->parameter_sets_count;
+  clone->parameter_sets_lengths = calloc(
+      clone->parameter_sets_count, sizeof(*clone->parameter_sets_lengths));
+  clone->parameter_sets =
+      calloc(clone->parameter_sets_count, sizeof(*clone->parameter_sets));
+  for (uint32_t i = 0; i < clone->parameter_sets_count; i++) {
+    clone->parameter_sets_lengths[i] = frame->parameter_sets_lengths[i];
+    clone->parameter_sets[i] = calloc(clone->parameter_sets_lengths[i],
+                                      sizeof(*clone->parameter_sets[i]));
+    memcpy(clone->parameter_sets[i], frame->parameter_sets[i],
+           clone->parameter_sets_lengths[i]);
+  }
+
+  clone->nalus_count = frame->nalus_count;
+  clone->nalus_lengths =
+      calloc(clone->nalus_count, sizeof(*clone->nalus_lengths));
+  clone->nalus = calloc(clone->nalus_count, sizeof(*clone->nalus));
+  for (uint32_t i = 0; i < clone->nalus_count; i++) {
+    clone->nalus_lengths[i] = frame->nalus_lengths[i];
+    clone->nalus[i] = calloc(clone->nalus_lengths[i], sizeof(*clone->nalus[i]));
+    memcpy(clone->nalus[i], frame->nalus[i], clone->nalus_lengths[i]);
+  }
+
+  return clone;
 }

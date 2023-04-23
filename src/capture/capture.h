@@ -18,8 +18,6 @@ struct CFrame {
   uint8_t **nalus;
   uint32_t nalus_count;
   uint32_t *nalus_lengths;
-  // adhoc reference count, starts from 2 by default
-  atomic_int refcount;
 };
 
 // TODO: use uint8_t over char
@@ -45,7 +43,6 @@ struct Capturer *setup_capturer(CompressedFrameHandler handler);
 int start_capture(struct Capturer *capturer);
 int stop_capture(struct Capturer *capturer);
 
-void retain_cframe(struct CFrame *frame);
 void release_cframe(struct CFrame **frame_ptr);
 
 struct SerializedCFrame {
@@ -57,5 +54,6 @@ struct SerializedCFrame {
 struct SerializedCFrame serialize_cframe(struct CFrame *frame);
 void release_serialized_cframe(struct SerializedCFrame *buffer);
 struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length);
+struct CFrame *clone_cframe(struct CFrame *frame);
 
 #endif

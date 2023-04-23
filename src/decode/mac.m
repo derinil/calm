@@ -233,6 +233,16 @@ int start_decoder(struct Decoder *decoder, struct CFrame *frame) {
     this->decompression_session = NULL;
   }
 
+#if 1
+  printf("ps: ");
+  for (uint32_t i = 0; i < frame->parameter_sets_count; i++) {
+    for (uint32_t j = 0; j < frame->parameter_sets_lengths[i]; j++) {
+      printf("%x", frame->parameter_sets[i][j]);
+    }
+    printf("\n");
+  }
+#endif
+
   CMFormatDescriptionRef format_description = NULL;
   OSStatus status = CMVideoFormatDescriptionCreateFromH264ParameterSets(
       NULL, frame->parameter_sets_count,
