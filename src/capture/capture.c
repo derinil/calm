@@ -12,22 +12,22 @@ void release_serialized_cframe(struct SerializedCFrame *serf) {
 
 struct SerializedCFrame serialize_cframe(struct CFrame *frame) {
   uint8_t *buf;
-  uint32_t buf_len = 0;
-  static const uint32_t packet_type = 1;
+  uint64_t buf_len = 0;
+  static const uint64_t packet_type = 1;
   uint64_t buf_off = 0;
   struct SerializedCFrame *serbuf;
   binn *obj = binn_object();
   binn *list;
   binn *subobj;
 
-  binn_object_set_uint32(obj, "nalu_h_length", frame->nalu_h_len);
+  binn_object_set_uint64(obj, "nalu_h_length", frame->nalu_h_len);
 
-  binn_object_set_uint32(obj, "ps_count", frame->parameter_sets_count);
+  binn_object_set_uint64(obj, "ps_count", frame->parameter_sets_count);
   if (frame->parameter_sets_count > 0) {
     list = binn_list();
     for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
       subobj = binn_object();
-      binn_object_set_uint32(subobj, "ps_length",
+      binn_object_set_uint64(subobj, "ps_length",
                              frame->parameter_sets_lengths[i]);
       binn_object_set_str(subobj, "ps_buffer",
                           (char *)frame->parameter_sets[i]);
@@ -36,12 +36,12 @@ struct SerializedCFrame serialize_cframe(struct CFrame *frame) {
     binn_object_set_list(obj, "pss", list);
   }
 
-  binn_object_set_uint32(obj, "nalus_count", frame->nalus_count);
+  binn_object_set_uint64(obj, "nalus_count", frame->nalus_count);
   if (frame->nalus_count > 0) {
     list = binn_list();
     for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
       subobj = binn_object();
-      binn_object_set_uint32(subobj, "nalu_length", frame->nalus_lengths[i]);
+      binn_object_set_uint64(subobj, "nalu_length", frame->nalus_lengths[i]);
       binn_object_set_str(subobj, "nalu_buffer", (char *)frame->nalus[i]);
       binn_list_add_object(list, subobj);
     }
@@ -55,7 +55,7 @@ struct SerializedCFrame serialize_cframe(struct CFrame *frame) {
   };
 }
 
-struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length) {
+struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
   binn *obj;
   binn *list;
   binn *subobj;
@@ -63,9 +63,9 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length) {
 
   obj = binn_open(buffer);
 
-  frame->nalu_h_len = binn_object_uint32(obj, "nalu_h_length");
+  frame->nalu_h_len = binn_object_uint64(obj, "nalu_h_length");
 
-  frame->parameter_sets_count = binn_object_uint32(obj, "ps_count");
+  frame->parameter_sets_count = binn_object_uint64(obj, "ps_count");
 
   if (frame->parameter_sets_count > 0) {
     frame->is_keyframe = 1;
@@ -74,25 +74,25 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length) {
     frame->parameter_sets =
         calloc(frame->parameter_sets_count, sizeof(*frame->parameter_sets));
     list = binn_object_list(obj, "pss");
-    for (uint32_t i = 0; i < frame->parameter_sets_count; i++) {
+    for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
       subobj = binn_list_object(list, i);
       frame->parameter_sets_lengths[i] =
-          binn_object_uint32(subobj, "ps_length");
+          binn_object_uint64(subobj, "ps_length");
       frame->parameter_sets[i] =
           (uint8_t *)binn_object_str(subobj, "ps_buffer");
     }
   }
 
-  frame->nalus_count = binn_object_uint32(obj, "nalus_count");
+  frame->nalus_count = binn_object_uint64(obj, "nalus_count");
 
   if (frame->nalus_count > 0) {
     frame->nalus_lengths =
         calloc(frame->nalus_count, sizeof(*frame->nalus_lengths));
     frame->nalus = calloc(frame->nalus_count, sizeof(*frame->nalus));
     list = binn_object_list(obj, "nalus");
-    for (uint32_t i = 0; i < frame->nalus_count; i++) {
+    for (uint64_t i = 0; i < frame->nalus_count; i++) {
       subobj = binn_list_object(list, i);
-      frame->nalus_lengths[i] = binn_object_uint32(subobj, "nalu_length");
+      frame->nalus_lengths[i] = binn_object_uint64(subobj, "nalu_length");
       frame->nalus[i] = (uint8_t *)binn_object_str(subobj, "nalu_buffer");
     }
   }
@@ -100,36 +100,4 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length) {
   binn_free(obj);
 
   return frame;
-}
-
-struct CFrame *clone_cframe(struct CFrame *frame) {
-  struct CFrame *clone = calloc(1, sizeof(*clone));
-
-  clone->nalu_h_len = frame->nalu_h_len;
-  clone->is_keyframe = frame->is_keyframe;
-
-  clone->parameter_sets_count = frame->parameter_sets_count;
-  clone->parameter_sets_lengths = calloc(
-      clone->parameter_sets_count, sizeof(*clone->parameter_sets_lengths));
-  clone->parameter_sets =
-      calloc(clone->parameter_sets_count, sizeof(*clone->parameter_sets));
-  for (uint32_t i = 0; i < clone->parameter_sets_count; i++) {
-    clone->parameter_sets_lengths[i] = frame->parameter_sets_lengths[i];
-    clone->parameter_sets[i] = calloc(clone->parameter_sets_lengths[i],
-                                      sizeof(*clone->parameter_sets[i]));
-    memcpy(clone->parameter_sets[i], frame->parameter_sets[i],
-           clone->parameter_sets_lengths[i]);
-  }
-
-  clone->nalus_count = frame->nalus_count;
-  clone->nalus_lengths =
-      calloc(clone->nalus_count, sizeof(*clone->nalus_lengths));
-  clone->nalus = calloc(clone->nalus_count, sizeof(*clone->nalus));
-  for (uint32_t i = 0; i < clone->nalus_count; i++) {
-    clone->nalus_lengths[i] = frame->nalus_lengths[i];
-    clone->nalus[i] = calloc(clone->nalus_lengths[i], sizeof(*clone->nalus[i]));
-    memcpy(clone->nalus[i], frame->nalus[i], clone->nalus_lengths[i]);
-  }
-
-  return clone;
 }

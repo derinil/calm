@@ -11,13 +11,14 @@
 // TODO: combine ps and nalus all into one array
 struct CFrame {
   int is_keyframe;
-  uint32_t nalu_h_len;
+  // TODO: cant seem to make these into uint32_ts
+  uint64_t nalu_h_len;
   uint8_t **parameter_sets;
-  uint32_t parameter_sets_count;
-  uint32_t *parameter_sets_lengths;
+  uint64_t parameter_sets_count;
+  uint64_t *parameter_sets_lengths;
   uint8_t **nalus;
-  uint32_t nalus_count;
-  uint32_t *nalus_lengths;
+  uint64_t nalus_count;
+  uint64_t *nalus_lengths;
 };
 
 // TODO: use uint8_t over char
@@ -53,7 +54,7 @@ struct SerializedCFrame {
 
 struct SerializedCFrame serialize_cframe(struct CFrame *frame);
 void release_serialized_cframe(struct SerializedCFrame *buffer);
-struct CFrame *unmarshal_cframe(uint8_t *buffer, uint32_t length);
+struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length);
 struct CFrame *clone_cframe(struct CFrame *frame);
 
 #endif

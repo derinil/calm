@@ -19,15 +19,6 @@ void server_decompressed_frame_callback(struct DFrame *dframe) {
 
 void frame_callback(struct CFrame *frame) {
 #if 1
-  printf("ps: ");
-  for (uint32_t i = 0; i < frame->parameter_sets_count; i++) {
-    for (uint32_t j = 0; j < frame->parameter_sets_lengths[i]; j++) {
-      printf("%x", frame->parameter_sets[i][j]);
-    }
-    printf("\n");
-  }
-#endif
-#if 1
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
 #endif
@@ -107,7 +98,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 0
+#if 1
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;

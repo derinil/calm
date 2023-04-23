@@ -360,3 +360,41 @@ int stop_capture(struct Capturer *capturer) {
   CFRelease(this->compression_session);
   return err;
 }
+
+struct CFrame *clone_cframe(struct CFrame *frame) {
+  struct MacCFrame *mcf = (struct MacCFrame *)frame;
+  struct MacCFrame *clone = calloc(1, sizeof(*clone));
+  struct CFrame *cf = &clone->frame;
+
+  clone->datas = mcf->datas;
+  clone->datas_len = mcf->datas_len;
+  clone->block_buf_data = mcf->block_buf_data;
+  clone->block_buffer = mcf->block_buffer;
+
+  cf->nalu_h_len = frame->nalu_h_len;
+  cf->is_keyframe = frame->is_keyframe;
+
+  cf->parameter_sets_count = frame->parameter_sets_count;
+  cf->parameter_sets_lengths =
+      calloc(cf->parameter_sets_count, sizeof(*cf->parameter_sets_lengths));
+  cf->parameter_sets =
+      calloc(cf->parameter_sets_count, sizeof(*cf->parameter_sets));
+  for (uint32_t i = 0; i < cf->parameter_sets_count; i++) {
+    cf->parameter_sets_lengths[i] = frame->parameter_sets_lengths[i];
+    cf->parameter_sets[i] =
+        calloc(cf->parameter_sets_lengths[i], sizeof(*cf->parameter_sets[i]));
+    memcpy(cf->parameter_sets[i], frame->parameter_sets[i],
+           cf->parameter_sets_lengths[i]);
+  }
+
+  cf->nalus_count = frame->nalus_count;
+  cf->nalus_lengths = calloc(cf->nalus_count, sizeof(*cf->nalus_lengths));
+  cf->nalus = calloc(cf->nalus_count, sizeof(*cf->nalus));
+  for (uint32_t i = 0; i < cf->nalus_count; i++) {
+    cf->nalus_lengths[i] = frame->nalus_lengths[i];
+    cf->nalus[i] = calloc(cf->nalus_lengths[i], sizeof(*cf->nalus[i]));
+    memcpy(cf->nalus[i], frame->nalus[i], cf->nalus_lengths[i]);
+  }
+
+  return &clone->frame;
+}
