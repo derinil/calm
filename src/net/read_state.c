@@ -57,7 +57,7 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
     break;
 
   case AllocateBuffer:
-    if ((uint64_t)state->current_offset != state->buffer_len) {
+    if (state->current_offset != state->buffer_len) {
       state->state = FillBuffer;
       break;
     }

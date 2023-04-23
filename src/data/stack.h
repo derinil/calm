@@ -13,6 +13,7 @@ struct DSElement {
   int exists;
   int read_count;
   int remove_at;
+  int pop_count;
 };
 
 struct Buffer {
@@ -43,8 +44,6 @@ void dstack_push(struct DStack *ds, void *element, int remove_at);
 void *dstack_pop_nonblock(struct DStack *ds);
 // Blocks using a condvar
 void *dstack_pop_block(struct DStack *ds);
-// TODO: look into condvars
-int dstack_ready(struct DStack *ds);
 // Empty the stack, useful for control instructions
 struct Buffer dstack_pop_all(struct DStack *ds);
 

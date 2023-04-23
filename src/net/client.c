@@ -101,6 +101,15 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   if (!buffer_ready)
     return;
 
+#if 0
+  printf("got buf len %u\n", state->buffer_len);
+
+  for (uint32_t i = 0; i < state->buffer_len; i++) {
+    printf("%x", state->buffer[i]);
+  }
+  printf("\n");
+#endif
+
   switch (state->packet_type) {
   case 1:
     // TODO: again we have some memory bug, its failing to decode the first

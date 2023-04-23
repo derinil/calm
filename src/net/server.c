@@ -3,6 +3,7 @@
 #include "../cyborg/control.h"
 #include "../data/stack.h"
 #include "../util/util.h"
+#include "binn.h"
 #include "read_state.h"
 #include "uv.h"
 #include <stdio.h>
@@ -71,7 +72,7 @@ void net_send_frame(uv_idle_t *handle) {
   uv_write_t *req;
   uint8_t *packet_id;
   struct CFrame *frame = NULL;
-  struct SerializedCFrame serfc;
+  struct SerializedCFrame *serfc = NULL;
   struct NetServer *server = (struct NetServer *)handle->data;
 
   frame = (struct CFrame *)dstack_pop_nonblock(server->frame_stack);
@@ -79,18 +80,27 @@ void net_send_frame(uv_idle_t *handle) {
     return;
   serfc = serialize_cframe(frame);
   release_cframe(&frame);
-  packet_id = create_packet_id(serfc.length, 1);
+  packet_id = create_packet_id(serfc->length, 1);
   req = calloc(1, sizeof(*req));
   req->data = server;
 
   uvbufs = (uv_buf_t[]){
       {.base = (char *)packet_id, .len = 8},
-      {.base = (char *)serfc.buffer, .len = serfc.length},
+      {.base = (char *)serfc->buffer, .len = serfc->length},
   };
+
+#if 1
+  printf("sent buf len %lu\n", serfc->length);
+
+  binn *obj = binn_open(serfc->buffer);
+  binn *list = binn_object_list(obj, "nalus");
+  printf("sent list count %d\n", binn_count(list));
+#endif
 
   uv_write(req, (uv_stream_t *)server->tcp_client, uvbufs, 2,
            on_write_callback);
-  release_serialized_cframe(&serfc);
+  release_serialized_cframe(serfc);
+  serfc = NULL;
 }
 
 static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {

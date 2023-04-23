@@ -44,16 +44,26 @@ void release_cframe(struct CFrame **frame_ptr) {
   struct CFrame *frame = *frame_ptr;
   NSMutableData *data;
   struct MacCFrame *this = (struct MacCFrame *)frame;
-  for (size_t x = 0; x < this->datas_len; x++) {
-    data = this->datas[x];
-    [data release];
+  if (this->datas_len > 0) {
+    for (size_t x = 0; x < this->datas_len; x++) {
+      data = this->datas[x];
+      if (data)
+        [data release];
+    }
+    if (this->datas)
+      free(this->datas);
   }
-  CFRelease(this->block_buffer);
-  free(frame->nalus);
-  free(frame->nalus_lengths);
-  free(frame->parameter_sets);
-  free(frame->parameter_sets_lengths);
-  free(this->datas);
+  // this is very upsetting
+  if (this->block_buffer)
+    CFRelease(this->block_buffer);
+  if (frame->nalus)
+    free(frame->nalus);
+  if (frame->nalus_lengths)
+    free(frame->nalus_lengths);
+  if (frame->parameter_sets)
+    free(frame->parameter_sets);
+  if (frame->parameter_sets_lengths)
+    free(frame->parameter_sets_lengths);
   free(this);
   *frame_ptr = NULL;
 }
@@ -369,8 +379,6 @@ struct CFrame *clone_cframe(struct CFrame *frame) {
   clone->datas = mcf->datas;
   clone->datas_len = mcf->datas_len;
   clone->block_buf_data = mcf->block_buf_data;
-  clone->block_buffer = mcf->block_buffer;
-
   cf->nalu_h_len = frame->nalu_h_len;
   cf->is_keyframe = frame->is_keyframe;
 

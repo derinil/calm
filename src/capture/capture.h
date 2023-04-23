@@ -52,7 +52,7 @@ struct SerializedCFrame {
   size_t length;
 };
 
-struct SerializedCFrame serialize_cframe(struct CFrame *frame);
+struct SerializedCFrame *serialize_cframe(struct CFrame *frame);
 void release_serialized_cframe(struct SerializedCFrame *buffer);
 struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length);
 struct CFrame *clone_cframe(struct CFrame *frame);

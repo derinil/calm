@@ -22,6 +22,7 @@ void frame_callback(struct CFrame *frame) {
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
 #endif
+  serialize_cframe(frame);
   dstack_push(g_server->compressed_stack, frame, 1);
 }
 
@@ -98,7 +99,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 1
+#if 0
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
