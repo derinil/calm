@@ -25,7 +25,7 @@ void crestial_expand_to_fit(struct CrestialWriter *w, uint32_t u) {
   if (w->free < u) {
     to_alloc = u - w->free;
   }
-  *w->dest = realloc(*w->dest, to_alloc);
+  *w->dest = realloc(*w->dest, w->alloced + to_alloc);
   w->alloced += to_alloc;
   w->free += to_alloc;
   w->curr_write = *w->dest + w->wrote;
