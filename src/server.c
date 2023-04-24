@@ -12,6 +12,7 @@
 
 static struct Server *g_server;
 
+#define MARSHAL_SERVERSIDE 1
 #define DECODE_SERVERSIDE 1
 #define RUN_SERVER_GUI 1
 
@@ -21,13 +22,13 @@ static void server_decompressed_frame_callback(struct DFrame *dframe) {
 }
 
 static void frame_callback(struct CFrame *frame) {
+#if MARSHAL_SERVERSIDE
+  struct SerializedCFrame *ser = serialize_cframe(frame);
+  frame = unmarshal_cframe(ser->buffer, ser->length);
+#endif
 #if DECODE_SERVERSIDE
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
-#endif
-#if 0
-  struct SerializedCFrame *ser = serialize_cframe(frame);
-  frame = unmarshal_cframe(ser->buffer, ser->length);
 #endif
   dstack_push(g_server->compressed_stack, frame, 1);
 }
