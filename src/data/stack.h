@@ -10,7 +10,6 @@
 // we still accept and return (void *)
 struct DSElement {
   void *actual;
-  int exists;
   int read_count;
   int remove_at;
   int pop_count;
@@ -34,7 +33,7 @@ struct DStack {
   FreeElement freer;
   uv_mutex_t mutex;
   uv_cond_t cond;
-  struct DSElement elements[MAX_DS_LEN];
+  struct DSElement *elements[MAX_DS_LEN];
 };
 
 struct DStack *create_dstack(FreeElement freer);

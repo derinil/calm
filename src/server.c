@@ -12,13 +12,13 @@
 
 static struct Server *g_server;
 
-void server_decompressed_frame_callback(struct DFrame *dframe) {
+static void server_decompressed_frame_callback(struct DFrame *dframe) {
   dstack_push(g_server->decompressed_stack, dframe, 1);
   release_cloned_cframe((struct CFrame *)dframe->ctx);
 }
 
-void frame_callback(struct CFrame *frame) {
-#if 1
+static void frame_callback(struct CFrame *frame) {
+#if 0
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
 #endif
@@ -28,6 +28,7 @@ void frame_callback(struct CFrame *frame) {
   printf("reaplced cframe\n");
 #endif
   dstack_push(g_server->compressed_stack, frame, 1);
+  printf("pushed frame %p\n", frame);
 }
 
 void capture_thread(void *vargs) {

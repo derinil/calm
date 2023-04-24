@@ -80,9 +80,10 @@ void net_send_frame(uv_idle_t *handle) {
   struct SerializedCFrame *serfc = NULL;
   struct NetServer *server = (struct NetServer *)handle->data;
 
-  frame = (struct CFrame *)dstack_pop_nonblock(server->frame_stack);
-  if (!frame || !frame->nalus_count)
+  frame = dstack_pop_nonblock(server->frame_stack);
+  if (!frame)
     return;
+  printf("net frame %p\n", frame);
   serfc = serialize_cframe(frame);
   packet_id = create_packet_id(serfc->length, 1);
   req = calloc(1, sizeof(*req));
