@@ -96,7 +96,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
     frame->parameter_sets = malloc(ps_len * sizeof(*(frame->parameter_sets)));
     frame->parameter_sets_lengths =
         malloc(ps_len * sizeof(*(frame->parameter_sets_lengths)));
-    frame->parameter_sets_count = ps_len;
+    frame->parameter_sets_count = (uint64_t)ps_len;
 
     // Write each parameter set to the elementary stream
     for (size_t i = 0; i < ps_len; i++) {
@@ -107,27 +107,22 @@ void compressed_frame_callback(void *output_callback_ref_con,
           description, i, &psp, &psp_len, NULL, &nalu_h_len);
 
       frame->nalu_h_len = nalu_h_len;
-      frame->parameter_sets_lengths[i] = psp_len - nalu_h_len;
+      frame->parameter_sets_lengths[i] = psp_len;
       frame->parameter_sets[i] = malloc(frame->parameter_sets_lengths[i] *
                                         sizeof(*frame->parameter_sets[i]));
-      // Skip the avcc header
-      memcpy(frame->parameter_sets[i], psp + nalu_h_len, psp_len - nalu_h_len);
+      memcpy(frame->parameter_sets[i], psp, psp_len);
     }
   }
-
-  CMBlockBufferRef block_buffer = CMSampleBufferGetDataBuffer(sample_buffer);
-
-  // TODO: multiple nalu units in blockbuffer
-  // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
 
   // Get a pointer to the raw AVCC NAL unit data in the sample buffer
   uint8_t *buffer = NULL;
   size_t block_buffer_length;
-  CMBlockBufferGetDataPointer(block_buffer, 0, NULL, &block_buffer_length,
-                              (char **)&buffer);
+  CMBlockBufferGetDataPointer(CMSampleBufferGetDataBuffer(sample_buffer), 0,
+                              NULL, &block_buffer_length, (char **)&buffer);
 
   uint32_t buf_off = 0;
-  const uint32_t avcc_h_len = frame->nalu_h_len;
+  // TODO: setting this to frame->nalu_h_len freezes the program
+  static const uint32_t avcc_h_len = 4;
 
   while (buf_off < block_buffer_length - avcc_h_len) {
     // Read the NAL unit length

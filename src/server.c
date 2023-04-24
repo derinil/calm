@@ -12,15 +12,22 @@
 
 static struct Server *g_server;
 
+#define DECODE_SERVERSIDE 1
+#define RUN_SERVER_GUI 1
+
 static void server_decompressed_frame_callback(struct DFrame *dframe) {
   dstack_push(g_server->decompressed_stack, dframe, 1);
   release_cloned_cframe((struct CFrame *)dframe->ctx);
 }
 
 static void frame_callback(struct CFrame *frame) {
-#if 0
+#if DECODE_SERVERSIDE
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
+#endif
+#if 0
+  struct SerializedCFrame *ser = serialize_cframe(frame);
+  frame = unmarshal_cframe(ser->buffer, ser->length);
 #endif
   dstack_push(g_server->compressed_stack, frame, 1);
 }
@@ -98,7 +105,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 1
+#if RUN_SERVER_GUI
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
