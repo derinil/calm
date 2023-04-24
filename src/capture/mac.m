@@ -50,8 +50,7 @@ void release_cframe(struct CFrame **frame_ptr) {
       if (data)
         [data release];
     }
-    if (this->datas)
-      free(this->datas);
+    free(this->datas);
   }
   // this is very upsetting
   if (this->block_buffer)

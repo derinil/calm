@@ -1,12 +1,10 @@
 #ifndef CONTROL_H_
 #define CONTROL_H_
 
-#include "binn.h"
 #include <stddef.h>
 #include <stdint.h>
 
 struct SerializedControl {
-  binn *obj;
   uint8_t *buffer;
   size_t length;
 };

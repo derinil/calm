@@ -43,6 +43,7 @@ var sourceFolders = [_][]const u8{
     basePath("/src/net"),
     basePath("/src/cyborg"),
     basePath("/src/util"),
+    basePath("/src/crestial"),
     basePath("/src/data"),
     // External
     basePath("/deps/mpack/src/mpack"),

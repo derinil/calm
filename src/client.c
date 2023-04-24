@@ -17,6 +17,7 @@ static struct Client *g_client;
 // to free
 void client_decompressed_frame_callback(struct DFrame *frame) {
   dstack_push(g_client->decompressed_stack, frame, 1);
+  release_unmarshaled_cframe((struct CFrame *)frame->data);
 }
 
 void decode_thread(void *vargs) {

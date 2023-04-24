@@ -3,7 +3,6 @@
 #include "../cyborg/control.h"
 #include "../data/stack.h"
 #include "../util/util.h"
-#include "binn.h"
 #include "read_state.h"
 #include "uv.h"
 #include <stdio.h>
@@ -88,14 +87,6 @@ void net_send_frame(uv_idle_t *handle) {
       {.base = (char *)packet_id, .len = 8},
       {.base = (char *)serfc->buffer, .len = serfc->length},
   };
-
-#if 1
-  printf("sent buf len %lu\n", serfc->length);
-
-  binn *obj = binn_open(serfc->buffer);
-  binn *list = binn_object_list(obj, "nalus");
-  printf("sent list count %d\n", binn_count(list));
-#endif
 
   uv_write(req, (uv_stream_t *)server->tcp_client, uvbufs, 2,
            on_write_callback);
