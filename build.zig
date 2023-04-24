@@ -12,7 +12,7 @@ const Decoders = enum {
     software,
 };
 
-const decoder: Decoders = .hardware;
+const decoder: Decoders = .software;
 
 var macFrameworks = [_][]const u8{
     "Foundation",

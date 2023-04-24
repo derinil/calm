@@ -13,8 +13,8 @@
 static struct Server *g_server;
 
 #define MARSHAL_SERVERSIDE 0
-#define DECODE_SERVERSIDE 0
-#define RUN_SERVER_GUI 0
+#define DECODE_SERVERSIDE 1
+#define RUN_SERVER_GUI 1
 
 static void server_decompressed_frame_callback(struct DFrame *dframe) {
   dstack_push(g_server->decompressed_stack, dframe, 1);

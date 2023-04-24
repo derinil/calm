@@ -110,10 +110,10 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
     return;
 
   struct DFrame *dframe = calloc(1, sizeof(*dframe));
-  dframe->width = h264bsdPicWidth(decoder->hantro_decoder);
-  dframe->height = h264bsdPicHeight(decoder->hantro_decoder);
+  dframe->width = h264bsdPicWidth(decoder->hantro_decoder) * 16;
+  dframe->height = h264bsdPicHeight(decoder->hantro_decoder) * 16;
   dframe->ctx = frame;
-  dframe->data = split_u32(decoded, dframe->width * dframe->height * 4);
+  dframe->data = (uint8_t *)decoded;
   dframe->bytes_per_row = dframe->width * 4;
   subdec->decompressed_frame_handler(dframe);
   decoded = NULL;
