@@ -41,9 +41,8 @@ struct CrestialReader *crestial_reader_init(uint8_t *src, uint32_t size);
 uint32_t crestial_read_u32(struct CrestialReader *r);
 // crestial_read_u64 reads 8 bytes that make up a u64
 uint64_t crestial_read_u64(struct CrestialReader *r);
-// crestial_read_str returns the pointer from the strings start
-// user should store a length right before the string.
-uint8_t *crestial_read_str(struct CrestialReader *r, uint32_t length);
+// crestial_read_str memcpy's a string of length to dest
+void crestial_read_str(struct CrestialReader *r, uint8_t *dest, uint32_t length);
 // crestial_reader_finalize frees the reader
 void crestial_reader_finalize(struct CrestialReader *r);
 

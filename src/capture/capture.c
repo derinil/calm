@@ -63,8 +63,10 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
       calloc(frame->parameter_sets_count, sizeof(*frame->parameter_sets));
   for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
     frame->parameter_sets_lengths[i] = crestial_read_u64(reader);
-    frame->parameter_sets[i] =
-        crestial_read_str(reader, frame->parameter_sets_lengths[i]);
+    frame->parameter_sets[i] = malloc(frame->parameter_sets_lengths[i] *
+                                      sizeof(*frame->parameter_sets[i]));
+    crestial_read_str(reader, frame->parameter_sets[i],
+                      frame->parameter_sets_lengths[i]);
   }
 
   frame->nalus_count = crestial_read_u64(reader);
@@ -73,7 +75,9 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
   frame->nalus = calloc(frame->nalus_count, sizeof(*frame->nalus));
   for (uint64_t i = 0; i < frame->nalus_count; i++) {
     frame->nalus_lengths[i] = crestial_read_u64(reader);
-    frame->nalus[i] = crestial_read_str(reader, frame->nalus_lengths[i]);
+    frame->nalus[i] =
+        malloc(frame->nalus_lengths[i] * sizeof(*frame->nalus[i]));
+    crestial_read_str(reader, frame->nalus[i], frame->nalus_lengths[i]);
   }
 
   return frame;
@@ -83,10 +87,16 @@ void release_unmarshaled_cframe(struct CFrame *frame) {
   struct UnmarshaledCFrame *uf = (struct UnmarshaledCFrame *)frame;
   if (frame->parameter_sets_count) {
     free(frame->parameter_sets_lengths);
+    for (uint64_t i = 0; i < frame->parameter_sets_count; i++) {
+      free(frame->parameter_sets[i]);
+    }
     free(frame->parameter_sets);
   }
   if (frame->nalus_count) {
     free(frame->nalus_lengths);
+    for (uint64_t i = 0; i < frame->nalus_count; i++) {
+      free(frame->nalus[i]);
+    }
     free(frame->nalus);
   }
   free(uf->buffer);

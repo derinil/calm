@@ -101,10 +101,9 @@ uint64_t crestial_read_u64(struct CrestialReader *r) {
   return u;
 }
 
-uint8_t *crestial_read_str(struct CrestialReader *r, uint32_t length) {
-  uint8_t *p = r->src;
+void crestial_read_str(struct CrestialReader *r, uint8_t *dest, uint32_t length) {
+  memcpy(dest, r->src, length);
   crestial_read(r, length);
-  return p;
 }
 
 void crestial_reader_finalize(struct CrestialReader *r) { free(r); }
