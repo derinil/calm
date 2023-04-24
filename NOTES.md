@@ -80,8 +80,7 @@
 
 # todo
 
-- use flatbuffers or capn proto (idk) to avoid manually writing serialization code
-  - use this https://github.com/liteserver/binn seems easier
+- cframe stack freer is broken, probably dframe too
 
 # vscode extensions
 

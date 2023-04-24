@@ -12,7 +12,7 @@
 
 static struct Server *g_server;
 
-#define MARSHAL_SERVERSIDE 1
+#define MARSHAL_SERVERSIDE 0
 #define DECODE_SERVERSIDE 1
 #define RUN_SERVER_GUI 1
 
@@ -23,7 +23,9 @@ static void server_decompressed_frame_callback(struct DFrame *dframe) {
 
 static void frame_callback(struct CFrame *frame) {
 #if MARSHAL_SERVERSIDE
+  // This crashes once stack tries to free old ones
   struct SerializedCFrame *ser = serialize_cframe(frame);
+  release_cframe(&frame);
   frame = unmarshal_cframe(ser->buffer, ser->length);
 #endif
 #if DECODE_SERVERSIDE
