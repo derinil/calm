@@ -101,7 +101,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
 
 static void cursor_position_callback(GLFWwindow *window, double xpos_d,
                                      double ypos_d) {
-  printf("%f %f\n", xpos_d, ypos_d);
+  // printf("%f %f\n", xpos_d, ypos_d);
   // TODO: temporarily disabled until i figure out mouse pos
   // xpos - last_xpos can be negative so we need signed 32 bit int
   /*uint32_t xpos = (uint32_t)rint(xpos_d);
