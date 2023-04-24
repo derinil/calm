@@ -38,8 +38,6 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
                              uint32_t nread) {
   state->current_offset += nread;
 
-  printf("offs %d\n", state->current_offset);
-
   switch (state->state) {
   case AllocatePacketID:
     if (state->current_offset != 8) {
@@ -54,7 +52,6 @@ int read_state_handle_buffer(struct ReadState *state, uint8_t *buffer,
     read_packet_id(state->packet_id_buffer, &state->buffer_len,
                    &state->packet_type);
     free(state->packet_id_buffer);
-    printf("got packet id %d\n", state->buffer_len);
     state->state = AllocateBuffer;
     state->current_offset = 0;
     break;

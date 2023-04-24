@@ -11,7 +11,7 @@
 
 struct WriteContext {
   struct NetServer *server;
-  uint8_t *buffer;
+  void *buffer;
 };
 
 void on_new_connection(uv_stream_t *server, int status);
@@ -72,8 +72,7 @@ int net_start_server(struct NetServer *server) {
 }
 
 void net_send_frame(uv_idle_t *handle) {
-  uint8_t *combined;
-  uv_buf_t uvbuf;
+  uv_buf_t *uvbuf;
   uv_write_t *req;
   uint8_t *packet_id;
   struct CFrame *frame = NULL;
@@ -86,17 +85,15 @@ void net_send_frame(uv_idle_t *handle) {
   serfc = serialize_cframe(frame);
   release_cframe(&frame);
   packet_id = create_packet_id(serfc->length, 1);
-  combined = combine_two_str(packet_id, 8, serfc->buffer, serfc->length);
-  release_serialized_cframe(serfc);
   req = calloc(1, sizeof(*req));
-  // req->data = &(struct WriteContext){.server = server, .buffer = combined};
-  req->data = server;
+  req->data = &(struct WriteContext){.server = server, .buffer = serfc};
 
-  uvbuf = uv_buf_init((char *)combined, 8 + serfc->length);
+  uvbuf = (uv_buf_t[]){
+      {.base = (char *)packet_id, .len = 8},
+      {.base = (char *)serfc->buffer, .len = serfc->length},
+  };
 
-  uv_write(req, (uv_stream_t *)server->tcp_client, &uvbuf, 1,
-           on_write_callback);
-  free(combined);
+  uv_write(req, (uv_stream_t *)server->tcp_client, uvbuf, 2, on_write_callback);
 }
 
 static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {
@@ -110,9 +107,9 @@ static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {
 }
 
 void on_write_callback(uv_write_t *req, int status) {
-  // struct WriteContext *ctx = req->data;
-  struct NetServer *server = req->data;
-  // free(ctx->buffer);
+  struct WriteContext *ctx = req->data;
+  struct NetServer *server = ctx->server;
+  release_serialized_cframe(ctx->buffer);
   free(req);
   if (status) {
     printf("Write error %s\n", uv_strerror(status));
