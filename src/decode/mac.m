@@ -173,7 +173,7 @@ void decode_frame(struct Decoder *subdec, struct CFrame *frame) {
   struct MacDecodeContext *ctx = calloc(1, sizeof(*ctx));
 
   if (!decoder->decompression_session) {
-    if (frame->is_keyframe) {
+    if (frame->parameter_sets_count > 0) {
       err = start_decoder(subdec, frame);
       if (err) {
         printf("start_decoder failed with %d\n", err);

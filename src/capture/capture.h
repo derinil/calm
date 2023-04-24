@@ -8,8 +8,9 @@
 // We conditionally compile the implementations based on the platform.
 
 // TODO: combine ps and nalus all into one array
+// TODO: We can actually do away with this whole struct
+// at one point and keep it all in a serialized char array
 struct CFrame {
-  int is_keyframe;
   // TODO: cant seem to make these into uint32_ts
   uint64_t nalu_h_len;
   uint8_t **parameter_sets;

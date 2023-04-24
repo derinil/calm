@@ -12,6 +12,7 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 
 /*
@@ -32,40 +33,23 @@ struct MacCapturer {
   VTCompressionSessionRef compression_session;
 };
 
-struct MacCFrame {
-  struct CFrame frame;
-  NSMutableData **datas;
-  size_t datas_len;
-  uint8_t *block_buf_data;
-  CMBlockBufferRef block_buffer;
-};
-
 void release_cframe(struct CFrame **frame_ptr) {
   struct CFrame *frame = *frame_ptr;
-  NSMutableData *data;
-  struct MacCFrame *this = (struct MacCFrame *)frame;
-  if (this->datas_len > 0) {
-    for (size_t x = 0; x < this->datas_len; x++) {
-      data = this->datas[x];
-      [data release];
+  if (frame->nalus_count) {
+    for (size_t x = 0; x < frame->nalus_count; x++) {
+      free(frame->nalus[x]);
     }
-    free(this->datas);
-  }
-  for (size_t x = 0; x < frame->nalus_count; x++) {
-    free(frame->nalus[x]);
-  }
-  // this is very upsetting
-  if (this->block_buffer)
-    CFRelease(this->block_buffer);
-  if (frame->nalus)
-    free(frame->nalus);
-  if (frame->nalus_lengths)
     free(frame->nalus_lengths);
-  if (frame->parameter_sets)
-    free(frame->parameter_sets);
-  if (frame->parameter_sets_lengths)
+    free(frame->nalus);
+  }
+  if (frame->parameter_sets_count) {
+    for (size_t x = 0; x < frame->parameter_sets_count; x++) {
+      free(frame->parameter_sets[x]);
+    }
     free(frame->parameter_sets_lengths);
-  free(this);
+    free(frame->parameter_sets);
+  }
+  free(frame);
   *frame_ptr = NULL;
 }
 
@@ -73,9 +57,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
                                void *source_frame_ref_con, OSStatus status,
                                VTEncodeInfoFlags info_flags,
                                CMSampleBufferRef sample_buffer) {
-  NSMutableData *ps_data;
-  CMBlockBufferRef block_buffer;
-  struct MacCFrame *frame = NULL;
+  struct CFrame *frame = NULL;
   CompressedFrameHandler compressed_frame_handler;
 
   if (status == kVTEncodeInfo_FrameDropped || !sample_buffer)
@@ -101,11 +83,6 @@ void compressed_frame_callback(void *output_callback_ref_con,
     is_key = !keyExists || !CFBooleanGetValue(notSync);
   }
 
-// TODO: Allocate better
-// 10kb seems to be around average
-#define AVG_PS_LEN 1024
-#define AVG_DAT_LEN 10 * 1024
-
   // Write the SPS and PPS NAL units to the elementary stream before every
   // I-Frame
   if (is_key) {
@@ -117,39 +94,29 @@ void compressed_frame_callback(void *output_callback_ref_con,
     CMVideoFormatDescriptionGetH264ParameterSetAtIndex(description, 0, NULL,
                                                        NULL, &ps_len, NULL);
 
-    frame->frame.parameter_sets =
-        malloc(ps_len * sizeof(*(frame->frame.parameter_sets)));
-    frame->frame.parameter_sets_lengths =
-        malloc(ps_len * sizeof(*(frame->frame.parameter_sets_lengths)));
-    frame->datas = malloc(ps_len * sizeof(*(frame->datas)));
-    frame->frame.parameter_sets_count = ps_len;
+    frame->parameter_sets = malloc(ps_len * sizeof(*(frame->parameter_sets)));
+    frame->parameter_sets_lengths =
+        malloc(ps_len * sizeof(*(frame->parameter_sets_lengths)));
+    frame->parameter_sets_count = ps_len;
 
     // Write each parameter set to the elementary stream
     for (size_t i = 0; i < ps_len; i++) {
-      ps_data = [NSMutableData dataWithCapacity:AVG_PS_LEN];
       const uint8_t *psp;
       size_t psp_len;
       int nalu_h_len;
-      // TODO: use the points to frame->frame.parameter_sets[i] instead of psp
       CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
           description, i, &psp, &psp_len, NULL, &nalu_h_len);
 
-      // TODO: we can use memcpy and malloc over parameter_sets instead of this
-      // [ps_data appendBytes:startCode length:startCodeLength];
-      [ps_data appendBytes:psp length:psp_len];
-
-      [ps_data retain];
-
-      frame->frame.nalu_h_len = nalu_h_len;
-      frame->datas[i] = ps_data;
-      frame->frame.parameter_sets[i] = ps_data.mutableBytes;
-      frame->frame.parameter_sets_lengths[i] = ps_data.length;
+      frame->nalu_h_len = nalu_h_len;
+      frame->parameter_sets_lengths[i] = psp_len - nalu_h_len;
+      frame->parameter_sets[i] = malloc(frame->parameter_sets_lengths[i] *
+                                        sizeof(*frame->parameter_sets[i]));
+      // Skip the avcc header
+      memcpy(frame->parameter_sets[i], psp + nalu_h_len, psp_len - nalu_h_len);
     }
-
-    frame->frame.is_keyframe = 1;
   }
 
-  block_buffer = CMSampleBufferGetDataBuffer(sample_buffer);
+  CMBlockBufferRef block_buffer = CMSampleBufferGetDataBuffer(sample_buffer);
 
   // TODO: multiple nalu units in blockbuffer
   // https://stackoverflow.com/questions/28396622/extracting-h264-from-cmblockbuffer
@@ -161,7 +128,7 @@ void compressed_frame_callback(void *output_callback_ref_con,
                               (char **)&buffer);
 
   uint32_t buf_off = 0;
-  static const uint32_t avcc_h_len = 4;
+  const uint32_t avcc_h_len = frame->nalu_h_len;
 
   while (buf_off < block_buffer_length - avcc_h_len) {
     // Read the NAL unit length
@@ -170,29 +137,23 @@ void compressed_frame_callback(void *output_callback_ref_con,
     // Convert the length value from Big-endian to Little-endian
     nalu_len = CFSwapInt32BigToHost(nalu_len);
 
-    frame->frame.nalus =
-        realloc(frame->frame.nalus,
-                (frame->frame.nalus_count + 1) * sizeof(*frame->frame.nalus));
-    frame->frame.nalus_lengths = realloc(
-        frame->frame.nalus_lengths,
-        (frame->frame.nalus_count + 1) * sizeof(*frame->frame.nalus_lengths));
-    frame->frame.nalus[frame->frame.nalus_count] = malloc(
-        nalu_len * sizeof(*frame->frame.nalus[frame->frame.nalus_count]));
-    memcpy(frame->frame.nalus[frame->frame.nalus_count],
-           buffer + buf_off + avcc_h_len, nalu_len);
-    // frame->frame.nalus[frame->frame.nalus_count] =
-    //     buffer + buf_off + avcc_h_len;
-    frame->frame.nalus_lengths[frame->frame.nalus_count] = nalu_len;
+    frame->nalus =
+        realloc(frame->nalus, (frame->nalus_count + 1) * sizeof(*frame->nalus));
+    frame->nalus_lengths =
+        realloc(frame->nalus_lengths,
+                (frame->nalus_count + 1) * sizeof(*frame->nalus_lengths));
+    frame->nalus[frame->nalus_count] =
+        malloc(nalu_len * sizeof(*frame->nalus[frame->nalus_count]));
+    memcpy(frame->nalus[frame->nalus_count], buffer + buf_off + avcc_h_len,
+           nalu_len);
+    frame->nalus_lengths[frame->nalus_count] = nalu_len;
 
     // Move to the next NAL unit in the block buffer
-    frame->frame.nalus_count++;
+    frame->nalus_count++;
     buf_off += avcc_h_len + nalu_len;
   }
 
-  CFRetain(block_buffer);
-  frame->block_buffer = block_buffer;
-
-  compressed_frame_handler(&frame->frame);
+  compressed_frame_handler(frame);
 }
 
 void raw_frame_callback(VTCompressionSessionRef compression_session,

@@ -57,7 +57,6 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
   frame->nalu_h_len = crestial_read_u64(reader);
 
   frame->parameter_sets_count = crestial_read_u64(reader);
-  frame->is_keyframe = frame->parameter_sets_count > 0;
   frame->parameter_sets_lengths = calloc(
       frame->parameter_sets_count, sizeof(*frame->parameter_sets_lengths));
   frame->parameter_sets =
@@ -98,7 +97,6 @@ struct CFrame *clone_cframe(struct CFrame *frame) {
   struct CFrame *cf = calloc(1, sizeof(*cf));
 
   cf->nalu_h_len = frame->nalu_h_len;
-  cf->is_keyframe = frame->is_keyframe;
 
   cf->parameter_sets_count = frame->parameter_sets_count;
   cf->parameter_sets_lengths =
