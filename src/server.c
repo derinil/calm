@@ -22,13 +22,7 @@ static void frame_callback(struct CFrame *frame) {
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
 #endif
-#if 0
-  struct SerializedCFrame *sf = serialize_cframe(frame);
-  frame = unmarshal_cframe(sf->buffer, sf->length);
-  printf("reaplced cframe\n");
-#endif
   dstack_push(g_server->compressed_stack, frame, 1);
-  printf("pushed frame %p\n", frame);
 }
 
 void capture_thread(void *vargs) {

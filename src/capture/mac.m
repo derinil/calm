@@ -47,10 +47,12 @@ void release_cframe(struct CFrame **frame_ptr) {
   if (this->datas_len > 0) {
     for (size_t x = 0; x < this->datas_len; x++) {
       data = this->datas[x];
-      if (data)
-        [data release];
+      [data release];
     }
     free(this->datas);
+  }
+  for (size_t x = 0; x < frame->nalus_count; x++) {
+    free(frame->nalus[x]);
   }
   // this is very upsetting
   if (this->block_buffer)
@@ -67,28 +69,23 @@ void release_cframe(struct CFrame **frame_ptr) {
   *frame_ptr = NULL;
 }
 
-struct MacCFrame *init_mac_cframe() {
-  struct MacCFrame *frame = calloc(1, sizeof(*frame));
-  if (!frame)
-    return NULL;
-  return frame;
-}
-
 void compressed_frame_callback(void *output_callback_ref_con,
                                void *source_frame_ref_con, OSStatus status,
                                VTEncodeInfoFlags info_flags,
                                CMSampleBufferRef sample_buffer) {
   NSMutableData *ps_data;
   CMBlockBufferRef block_buffer;
-  struct MacCFrame *frame = init_mac_cframe();
-  if (!frame)
-    return;
+  struct MacCFrame *frame = NULL;
+  CompressedFrameHandler compressed_frame_handler;
 
   if (status == kVTEncodeInfo_FrameDropped || !sample_buffer)
     return;
 
-  CompressedFrameHandler compressed_frame_handler =
-      (CompressedFrameHandler)output_callback_ref_con;
+  frame = calloc(1, sizeof(*frame));
+  if (!frame)
+    return;
+
+  compressed_frame_handler = (CompressedFrameHandler)output_callback_ref_con;
 
   // Find out if the sample buffer contains an I-Frame.
   // If so we will write the SPS and PPS NAL units to the elementary stream.
@@ -141,6 +138,8 @@ void compressed_frame_callback(void *output_callback_ref_con,
       // [ps_data appendBytes:startCode length:startCodeLength];
       [ps_data appendBytes:psp length:psp_len];
 
+      [ps_data retain];
+
       frame->frame.nalu_h_len = nalu_h_len;
       frame->datas[i] = ps_data;
       frame->frame.parameter_sets[i] = ps_data.mutableBytes;
@@ -177,8 +176,12 @@ void compressed_frame_callback(void *output_callback_ref_con,
     frame->frame.nalus_lengths = realloc(
         frame->frame.nalus_lengths,
         (frame->frame.nalus_count + 1) * sizeof(*frame->frame.nalus_lengths));
-    frame->frame.nalus[frame->frame.nalus_count] =
-        buffer + buf_off + avcc_h_len;
+    frame->frame.nalus[frame->frame.nalus_count] = malloc(
+        nalu_len * sizeof(*frame->frame.nalus[frame->frame.nalus_count]));
+    memcpy(frame->frame.nalus[frame->frame.nalus_count],
+           buffer + buf_off + avcc_h_len, nalu_len);
+    // frame->frame.nalus[frame->frame.nalus_count] =
+    //     buffer + buf_off + avcc_h_len;
     frame->frame.nalus_lengths[frame->frame.nalus_count] = nalu_len;
 
     // Move to the next NAL unit in the block buffer
