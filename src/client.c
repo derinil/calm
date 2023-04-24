@@ -90,7 +90,7 @@ int start_client() {
   struct ThreadArgs decode_args = (struct ThreadArgs){.args = client, .ret = 0};
   uv_thread_create(&client->decode_thread, decode_thread, (void *)&decode_args);
 
-#if 0
+#if 1
   err = handle_client_gui(decompressed_stack, control_stack);
   if (err)
     return err;

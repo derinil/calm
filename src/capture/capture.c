@@ -80,10 +80,14 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
 
 void release_unmarshaled_cframe(struct CFrame *frame) {
   struct UnmarshaledCFrame *uf = (struct UnmarshaledCFrame *)frame;
-  free(frame->parameter_sets_lengths);
-  free(frame->parameter_sets);
-  free(frame->nalus_lengths);
-  free(frame->nalus);
+  if (frame->parameter_sets_count) {
+    free(frame->parameter_sets_lengths);
+    free(frame->parameter_sets);
+  }
+  if (frame->nalus_count) {
+    free(frame->nalus_lengths);
+    free(frame->nalus);
+  }
   free(uf->buffer);
   free(uf);
 }

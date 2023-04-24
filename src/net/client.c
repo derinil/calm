@@ -26,8 +26,8 @@ struct NetClient *setup_client(struct DStack *frame_stack,
   client->read_state = calloc(1, sizeof(*client->read_state));
   client->loop = uv_default_loop();
 
-  uv_idle_init(client->loop, &client->idle);
-  client->idle.data = client;
+  // uv_idle_init(client->loop, &client->idle);
+  // client->idle.data = client;
 
   uv_cond_init(&client->cond);
   uv_mutex_init(&client->mutex);
@@ -101,15 +101,6 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   if (!buffer_ready)
     return;
 
-#if 0
-  printf("got buf len %u\n", state->buffer_len);
-
-  for (uint32_t i = 0; i < state->buffer_len; i++) {
-    printf("%x", state->buffer[i]);
-  }
-  printf("\n");
-#endif
-
   switch (state->packet_type) {
   case 1:
     // TODO: again we have some memory bug, its failing to decode the first
@@ -127,12 +118,6 @@ void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
   memset(state, 0, sizeof(*state));
 }
 
-void write_stream(uv_stream_t *stream, char *data, int len2) {
-  uv_buf_t buffer[] = {{.base = data, .len = len2}};
-  uv_write_t *req = malloc(sizeof(uv_write_t));
-  uv_write(req, stream, buffer, 1, on_write);
-}
-
 void net_send_ctrl(uv_idle_t *handle) {
   uv_buf_t *uvbufs;
   uv_write_t *req;
@@ -142,6 +127,7 @@ void net_send_ctrl(uv_idle_t *handle) {
   struct Buffer ctrl_buffer;
   struct NetClient *client = (struct NetClient *)handle->data;
 
+#if 0
   ctrl_buffer = dstack_pop_all(client->ctrl_stack);
   if (!ctrl_buffer.length)
     return;
@@ -161,6 +147,7 @@ void net_send_ctrl(uv_idle_t *handle) {
     uv_write(req, (uv_stream_t *)client->tcp_socket, uvbufs, 2, on_write);
     ctrl_release_serializedcontrol(&serctrl);
   }
+#endif
 }
 
 void on_connect(uv_connect_t *connection_req, int status) {
@@ -176,5 +163,5 @@ void on_connect(uv_connect_t *connection_req, int status) {
   client->tcp_stream->data = client;
   free(connection_req);
   uv_read_start(client->tcp_stream, client_alloc_cb, on_read);
-  uv_idle_start(&client->idle, net_send_ctrl);
+  // uv_idle_start(&client->idle, net_send_ctrl);
 }
