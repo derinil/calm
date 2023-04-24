@@ -27,7 +27,4 @@ uint32_t read_uint32(uint8_t *buf);
 uint8_t *create_packet_id(uint32_t length, uint32_t packet_type);
 void read_packet_id(uint8_t *buffer, uint32_t *length, uint32_t *packet_type);
 
-uint8_t *combine_two_str(uint8_t *one, uint32_t one_len, uint8_t *two,
-                         uint32_t two_len);
-
 #endif

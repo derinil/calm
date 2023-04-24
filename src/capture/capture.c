@@ -14,7 +14,8 @@ struct UnmarshaledCFrame {
 };
 
 void release_serialized_cframe(struct SerializedCFrame *serf) {
-  free(serf->buffer);
+  if (serf->buffer)
+    free(serf->buffer);
   free(serf);
 }
 
@@ -41,7 +42,7 @@ struct SerializedCFrame *serialize_cframe(struct CFrame *frame) {
   crestial_writer_finalize(writer);
 
   ser = calloc(1, sizeof(*ser));
-  ser->buffer = (uint8_t *)data;
+  ser->buffer = data;
   ser->length = size;
 
   return ser;

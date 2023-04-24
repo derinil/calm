@@ -36,11 +36,3 @@ void read_packet_id(uint8_t *buffer, uint32_t *length, uint32_t *packet_type) {
   *length = read_uint32(buffer);
   *packet_type = read_uint32(buffer + 4);
 }
-
-uint8_t *combine_two_str(uint8_t *one, uint32_t one_len, uint8_t *two,
-                         uint32_t two_len) {
-  uint8_t *out = malloc((one_len + two_len) * sizeof(*out));
-  memcpy(out, one, one_len);
-  memcpy(out + one_len, two, two_len);
-  return out;
-}

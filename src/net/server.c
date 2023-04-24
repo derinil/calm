@@ -75,6 +75,7 @@ void net_send_frame(uv_idle_t *handle) {
   uv_buf_t *uvbuf;
   uv_write_t *req;
   uint8_t *packet_id;
+  struct WriteContext *ctx = NULL;
   struct CFrame *frame = NULL;
   struct SerializedCFrame *serfc = NULL;
   struct NetServer *server = (struct NetServer *)handle->data;
@@ -86,7 +87,10 @@ void net_send_frame(uv_idle_t *handle) {
   release_cframe(&frame);
   packet_id = create_packet_id(serfc->length, 1);
   req = calloc(1, sizeof(*req));
-  req->data = &(struct WriteContext){.server = server, .buffer = serfc};
+  ctx = malloc(sizeof(*ctx));
+  ctx->server = server;
+  ctx->buffer = serfc;
+  req->data = ctx;
 
   uvbuf = (uv_buf_t[]){
       {.base = (char *)packet_id, .len = 8},
@@ -110,6 +114,7 @@ void on_write_callback(uv_write_t *req, int status) {
   struct WriteContext *ctx = req->data;
   struct NetServer *server = ctx->server;
   release_serialized_cframe(ctx->buffer);
+  free(ctx);
   free(req);
   if (status) {
     printf("Write error %s\n", uv_strerror(status));
