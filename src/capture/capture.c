@@ -44,6 +44,7 @@ struct SerializedCFrame *serialize_cframe(struct CFrame *frame) {
   ser = calloc(1, sizeof(*ser));
   ser->buffer = data;
   ser->length = size;
+  ser->frame = frame;
 
   return ser;
 }
@@ -65,6 +66,10 @@ struct CFrame *unmarshal_cframe(uint8_t *buffer, uint64_t length) {
     frame->parameter_sets_lengths[i] = crestial_read_u64(reader);
     frame->parameter_sets[i] =
         crestial_read_str(reader, frame->parameter_sets_lengths[i]);
+    for (uint32_t j = 0; j < frame->parameter_sets_lengths[i]; j++) {
+      printf("%x", frame->parameter_sets[i][j]);
+    }
+    printf("\n");
   }
 
   frame->nalus_count = crestial_read_u64(reader);

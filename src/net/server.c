@@ -84,7 +84,6 @@ void net_send_frame(uv_idle_t *handle) {
   if (!frame || !frame->nalus_count)
     return;
   serfc = serialize_cframe(frame);
-  release_cframe(&frame);
   packet_id = create_packet_id(serfc->length, 1);
   req = calloc(1, sizeof(*req));
   ctx = malloc(sizeof(*ctx));
@@ -113,7 +112,9 @@ static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {
 void on_write_callback(uv_write_t *req, int status) {
   struct WriteContext *ctx = req->data;
   struct NetServer *server = ctx->server;
-  release_serialized_cframe(ctx->buffer);
+  struct SerializedCFrame *ser = ctx->buffer;
+  release_cframe(&ser->frame);
+  release_serialized_cframe(ser);
   free(ctx);
   free(req);
   if (status) {

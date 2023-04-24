@@ -48,6 +48,7 @@ void release_cframe(struct CFrame **frame_ptr);
 struct SerializedCFrame {
   uint8_t *buffer;
   size_t length;
+  struct CFrame *frame;
 };
 
 struct SerializedCFrame *serialize_cframe(struct CFrame *frame);
