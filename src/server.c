@@ -14,7 +14,7 @@ static struct Server *g_server;
 
 void server_decompressed_frame_callback(struct DFrame *dframe) {
   dstack_push(g_server->decompressed_stack, dframe, 1);
-  release_cframe((struct CFrame **)&dframe->ctx);
+  release_cloned_cframe((struct CFrame *)dframe->ctx);
 }
 
 void frame_callback(struct CFrame *frame) {
@@ -99,7 +99,7 @@ int start_server() {
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
 
-#if 0
+#if 1
   err = handle_server_gui(server->decompressed_stack);
   if (err)
     return err;
