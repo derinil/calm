@@ -91,19 +91,12 @@ void net_send_frame(uv_idle_t *handle) {
   ctx->buffer = serfc;
   req->data = ctx;
 
-  // uvbuf = (uv_buf_t[]){
-  //     {.base = (char *)packet_id, .len = 8},
-  //     {.base = (char *)serfc->buffer, .len = serfc->length},
-  // };
+  uvbuf = (uv_buf_t[]){
+      {.base = (char *)packet_id, .len = 8},
+      {.base = (char *)serfc->buffer, .len = serfc->length},
+  };
 
-  uint8_t *combined =
-      combine_two_str(packet_id, 8, serfc->buffer, serfc->length);
-
-  uv_buf_t uvb = uv_buf_init((char *)combined, serfc->length + 8);
-
-  uv_write(req, (uv_stream_t *)server->tcp_client, &uvb, 1, on_write_callback);
-
-  free(combined);
+  uv_write(req, (uv_stream_t *)server->tcp_client, uvbuf, 2, on_write_callback);
 }
 
 static void server_alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {

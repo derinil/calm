@@ -1,6 +1,7 @@
 #include "server.h"
 #include "capture/capture.h"
 #include "common.h"
+#include "cyborg/control.h"
 #include "data/stack.h"
 #include "decode/decode.h"
 #include "gui/dummy_gui.h"
@@ -13,8 +14,8 @@
 static struct Server *g_server;
 
 #define MARSHAL_SERVERSIDE 0
-#define DECODE_SERVERSIDE 1
-#define RUN_SERVER_GUI 1
+#define DECODE_SERVERSIDE 0
+#define RUN_SERVER_GUI 0
 
 static void server_decompressed_frame_callback(struct DFrame *dframe) {
   dstack_push(g_server->decompressed_stack, dframe, 1);
@@ -33,6 +34,22 @@ static void frame_callback(struct CFrame *frame) {
   decode_frame(g_server->decoder, clone);
 #endif
   dstack_push(g_server->compressed_stack, frame, 1);
+}
+
+void control_thread(void *vargs) {
+  int err;
+  struct Control *ctrl;
+  struct Buffer ctrls;
+  struct ThreadArgs *args = (struct ThreadArgs *)vargs;
+  struct DStack *ctrl_stack = args->args;
+  while (1) {
+    ctrls = dstack_pop_all(ctrl_stack);
+    for (uint32_t x = 0; x < ctrls.length; x++) {
+      ctrl = ctrls.elements[x];
+      inject_control(ctrl);
+    }
+  }
+  args->ret = err;
 }
 
 void capture_thread(void *vargs) {
@@ -65,7 +82,7 @@ int start_server() {
   struct DStack *control_stack;
   struct DStack *compressed_stack;
   struct DStack *decompressed_stack;
-  struct ThreadArgs net_ret = {0}, cap_ret = {0};
+  struct ThreadArgs net_ret = {0}, cap_ret = {0}, ctrl_ret = {0};
 
   server = malloc(sizeof(*server));
   if (!server)
@@ -107,6 +124,8 @@ int start_server() {
 
   uv_thread_create(&server->net_thread, server_net_thread, (void *)&net_ret);
   uv_thread_create(&server->net_thread, capture_thread, (void *)&net_ret);
+  ctrl_ret.args = control_stack;
+  uv_thread_create(&server->control_thread, control_thread, (void *)&ctrl_ret);
 
 #if RUN_SERVER_GUI
   err = handle_server_gui(server->decompressed_stack);

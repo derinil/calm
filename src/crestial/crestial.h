@@ -16,7 +16,9 @@ struct CrestialWriter {
 // dest and size cannot be null while estimate can be zero.
 struct CrestialWriter *crestial_writer_init(uint8_t **dest, uint32_t *size,
                                             uint32_t estimate_size);
-// crestial_write_u64 writes the 4 bytes that make up the u64
+// crestial_write_i32 writes the 4 bytes that make up the i32
+void crestial_write_i32(struct CrestialWriter *w, int32_t u);
+// crestial_write_u32 writes the 4 bytes that make up the u32
 void crestial_write_u32(struct CrestialWriter *w, uint32_t u);
 // crestial_write_u64 writes the 8 bytes that make up the u64
 void crestial_write_u64(struct CrestialWriter *w, uint64_t u);
@@ -37,12 +39,15 @@ struct CrestialReader {
 // reader will not make any length checks so there might easily be a buffer
 // overflow if the user tries to read too much.
 struct CrestialReader *crestial_reader_init(uint8_t *src, uint32_t size);
-// crestial_reader_u32 reads 4 bytes that make up a u32
+// crestial_read_i32 reads 4 bytes that make up a i32
+int32_t crestial_read_i32(struct CrestialReader *r);
+// crestial_read_u32 reads 4 bytes that make up a u32
 uint32_t crestial_read_u32(struct CrestialReader *r);
 // crestial_read_u64 reads 8 bytes that make up a u64
 uint64_t crestial_read_u64(struct CrestialReader *r);
 // crestial_read_str memcpy's a string of length to dest
-void crestial_read_str(struct CrestialReader *r, uint8_t *dest, uint32_t length);
+void crestial_read_str(struct CrestialReader *r, uint8_t *dest,
+                       uint32_t length);
 // crestial_reader_finalize frees the reader
 void crestial_reader_finalize(struct CrestialReader *r);
 

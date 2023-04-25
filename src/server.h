@@ -11,6 +11,7 @@
 struct Server {
   uv_thread_t net_thread;
   uv_thread_t capture_thread;
+  uv_thread_t control_thread;
   struct Decoder *decoder;
   struct Capturer *capturer;
   struct NetServer *net_server;

@@ -10,6 +10,11 @@
 #include <stdlib.h>
 #include <strings.h>
 
+struct WriteContext {
+  struct NetClient *client;
+  void *buffer;
+};
+
 void on_connect(uv_connect_t *connection, int status);
 void on_close_cb(uv_handle_t *handle);
 
@@ -26,8 +31,8 @@ struct NetClient *setup_client(struct DStack *frame_stack,
   client->read_state = calloc(1, sizeof(*client->read_state));
   client->loop = uv_default_loop();
 
-  // uv_idle_init(client->loop, &client->idle);
-  // client->idle.data = client;
+  uv_idle_init(client->loop, &client->idle);
+  client->idle.data = client;
 
   uv_cond_init(&client->cond);
   uv_mutex_init(&client->mutex);
@@ -75,7 +80,10 @@ void on_close_cb(uv_handle_t *handle) {
   free(handle);
 }
 
-void on_write(uv_write_t *req, int status) {
+void on_write_cb(uv_write_t *req, int status) {
+  struct WriteContext *ctx = req->data;
+  ctrl_release_serializedcontrol(ctx->buffer);
+  free(ctx);
   if (status)
     uv_close((uv_handle_t *)req->handle, on_close_cb);
   free(req);
@@ -121,29 +129,29 @@ void net_send_ctrl(uv_idle_t *handle) {
   uv_write_t *req;
   uint8_t *packet_id;
   struct Control *ctrl;
-  struct SerializedControl serctrl;
+  struct WriteContext *ctx = NULL;
+  struct SerializedControl *serctrl;
   struct Buffer ctrl_buffer;
   struct NetClient *client = (struct NetClient *)handle->data;
 
-#if 0
+#if 1
   ctrl_buffer = dstack_pop_all(client->ctrl_stack);
-  if (!ctrl_buffer.length)
-    return;
   for (size_t i = 0; i < ctrl_buffer.length; i++) {
     serctrl = ctrl_serialize_control(ctrl_buffer.elements[i]);
-    ctrl_release_control((struct Control **)&ctrl_buffer.elements[i]);
     // TODO: #define packet types
-    packet_id = create_packet_id(serctrl.length, 2);
+    packet_id = create_packet_id(serctrl->length, 2);
     req = calloc(1, sizeof(*req));
-    req->data = client;
+    ctx = malloc(sizeof(*ctx));
+    ctx->client = client;
+    ctx->buffer = serctrl;
+    req->data = ctx;
 
     uvbufs = (uv_buf_t[]){
         {.base = (char *)packet_id, .len = 8},
-        {.base = (char *)serctrl.buffer, .len = serctrl.length},
+        {.base = (char *)serctrl->buffer, .len = serctrl->length},
     };
 
-    uv_write(req, (uv_stream_t *)client->tcp_socket, uvbufs, 2, on_write);
-    ctrl_release_serializedcontrol(&serctrl);
+    uv_write(req, (uv_stream_t *)client->tcp_socket, uvbufs, 2, on_write_cb);
   }
 #endif
 }
@@ -161,5 +169,5 @@ void on_connect(uv_connect_t *connection_req, int status) {
   client->tcp_stream->data = client;
   free(connection_req);
   uv_read_start(client->tcp_stream, client_alloc_cb, on_read);
-  // uv_idle_start(&client->idle, net_send_ctrl);
+  uv_idle_start(&client->idle, net_send_ctrl);
 }

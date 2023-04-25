@@ -37,6 +37,14 @@ static inline void crestial_wrote(struct CrestialWriter *w, uint32_t u) {
   w->curr_write += u;
 }
 
+void crestial_write_i32(struct CrestialWriter *w, int32_t u) {
+  static const int len = 4;
+  if (w->free < len)
+    crestial_expand_to_fit(w, len);
+  memcpy(w->curr_write, (char *)&u, len);
+  crestial_wrote(w, len);
+}
+
 void crestial_write_u32(struct CrestialWriter *w, uint32_t u) {
   static const int len = 4;
   if (w->free < len)
@@ -85,7 +93,15 @@ static inline void crestial_read(struct CrestialReader *r, uint32_t u) {
   r->read += u;
 }
 
-uint32_t crestial_reader_u32(struct CrestialReader *r) {
+int32_t crestial_read_i32(struct CrestialReader *r) {
+  static const int len = 4;
+  int32_t u;
+  memcpy((uint8_t *)&u, r->src, len);
+  crestial_read(r, len);
+  return u;
+}
+
+uint32_t crestial_read_u32(struct CrestialReader *r) {
   static const int len = 4;
   uint32_t u;
   memcpy((uint8_t *)&u, r->src, len);
