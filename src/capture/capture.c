@@ -1,8 +1,6 @@
 #include "capture.h"
 #include "../crestial/crestial.h"
 #include "../util/util.h"
-#include "mpack-writer.h"
-#include "mpack.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
