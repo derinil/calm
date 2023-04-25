@@ -14,6 +14,3 @@
 [submodule "deps/glfw"]
 	path = deps/glfw
 	url = https://github.com/derinil/mach-glfw.git
-[submodule "deps/mpack"]
-	path = deps/mpack
-	url = https://github.com/ludocode/mpack.git
