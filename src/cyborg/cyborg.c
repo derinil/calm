@@ -11,6 +11,7 @@ void inject_control(struct Control *ctrl) {
     if (ctrl->type == Move) {
 #if 1
       MMSignedPoint sp = MMSignedPointMake(ctrl->pos_x, ctrl->pos_y);
+      printf("made point %d %d\n", sp.x, sp.y);
       moveMouse(sp);
 #else
       MMPoint point = getMousePos();

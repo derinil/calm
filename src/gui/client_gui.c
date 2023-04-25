@@ -112,21 +112,21 @@ static void cursor_position_callback(GLFWwindow *window, double xpos_d,
   // printf("%f %f\n", xpos_d, ypos_d);
   // TODO: temporarily disabled until i figure out mouse pos
   // xpos - last_xpos can be negative so we need signed 32 bit int
-  // uint32_t xpos = (uint32_t)rint(xpos_d);
-  // uint32_t ypos = (uint32_t)rint(ypos_d);
-  // static uint32_t last_xpos;
-  // static uint32_t last_ypos;
-  // struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
-  // struct Control *ctrl = malloc(sizeof(*ctrl));
-  // ctrl->source = Mouse;
-  // ctrl->type = Move;
-  // ctrl->pos_x = xpos;
-  // ctrl->pos_y = ypos;
-  // ctrl->pos_x_delta = xpos - last_xpos;
-  // ctrl->pos_y_delta = ypos - last_ypos;
-  // dstack_push(ctrl_stack, ctrl, 1);
-  // last_xpos = xpos;
-  // last_ypos = ypos;
+  int32_t xpos = (int32_t)rint(xpos_d);
+  int32_t ypos = (int32_t)rint(ypos_d);
+  static int32_t last_xpos;
+  static int32_t last_ypos;
+  struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
+  struct Control *ctrl = malloc(sizeof(*ctrl));
+  ctrl->source = Mouse;
+  ctrl->type = Move;
+  ctrl->pos_x = xpos;
+  ctrl->pos_y = ypos;
+  ctrl->pos_x_delta = xpos - last_xpos;
+  ctrl->pos_y_delta = ypos - last_ypos;
+  dstack_push(ctrl_stack, ctrl, 1);
+  last_xpos = xpos;
+  last_ypos = ypos;
 }
 
 static void mouse_button_callback(GLFWwindow *window, int button, int action,
