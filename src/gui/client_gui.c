@@ -96,7 +96,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
   // TODO: robotc library has a modifier key flag too, use that
   // for (int i = 0; i < 6; i++) {
   //   if ((mods & modifiers[i]) == modifiers_key_status[i]) {
-  //     continue;
+  //     continue;a
   //   }
   //   ctrl = calloc(1, sizeof(*ctrl));
   //   ctrl->source = Keyboard;
@@ -107,23 +107,29 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
   // }
 }
 
-static void cursor_position_callback(GLFWwindow *window, double xpos_d,
-                                     double ypos_d) {
-  // printf("%f %f\n", xpos_d, ypos_d);
-  // TODO: temporarily disabled until i figure out mouse pos
-  // xpos - last_xpos can be negative so we need signed 32 bit int
-  int32_t xpos = (int32_t)rint(xpos_d);
-  int32_t ypos = (int32_t)rint(ypos_d);
-  static int32_t last_xpos;
-  static int32_t last_ypos;
+static void cursor_position_callback(GLFWwindow *window, double xpos,
+                                     double ypos) {
+  static double last_xpos = 0;
+  static double last_ypos = 0;
   struct DStack *ctrl_stack = glfwGetWindowUserPointer(window);
+  // TODO: use doubles inside control
   struct Control *ctrl = malloc(sizeof(*ctrl));
   ctrl->source = Mouse;
   ctrl->type = Move;
-  ctrl->pos_x = xpos;
-  ctrl->pos_y = ypos;
+  // ctrl->pos_x = xpos;
+  // ctrl->pos_y = ypos;
+  // Add the window position so as to use the offset of the cursor to the root
+  // of the window
+  int wxpos = 0, wypos = 0;
+  glfwGetWindowPos(window, &wxpos, &wypos);
+  ctrl->pos_x = wypos + xpos;
+  ctrl->pos_y = wypos + ypos;
   ctrl->pos_x_delta = xpos - last_xpos;
   ctrl->pos_y_delta = ypos - last_ypos;
+  if (ctrl->pos_x_delta == 0 && ctrl->pos_y_delta == 0) {
+    free(ctrl);
+    return;
+  }
   dstack_push(ctrl_stack, ctrl, 1);
   last_xpos = xpos;
   last_ypos = ypos;

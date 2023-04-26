@@ -26,10 +26,10 @@ struct SerializedControl *ctrl_serialize_control(struct Control *ctrl) {
   crestial_write_i32(writer, ctrl->type);
   crestial_write_u32(writer, ctrl->value);
   if (ctrl->source == Mouse && ctrl->type == Move) {
-    crestial_write_u32(writer, ctrl->pos_x);
-    crestial_write_u32(writer, ctrl->pos_y);
-    crestial_write_i32(writer, ctrl->pos_x_delta);
-    crestial_write_i32(writer, ctrl->pos_y_delta);
+    crestial_write_double(writer, ctrl->pos_x);
+    crestial_write_double(writer, ctrl->pos_y);
+    crestial_write_double(writer, ctrl->pos_x_delta);
+    crestial_write_double(writer, ctrl->pos_y_delta);
   }
 
   crestial_writer_finalize(writer);
@@ -48,11 +48,12 @@ struct Control *ctrl_unmarshal_control(uint8_t *buffer, uint32_t length) {
 
   ctrl->source = crestial_read_i32(reader);
   ctrl->type = crestial_read_i32(reader);
+  ctrl->value = crestial_read_u32(reader);
   if (ctrl->source == Mouse && ctrl->type == Move) {
-    ctrl->pos_x = crestial_read_u32(reader);
-    ctrl->pos_y = crestial_read_u32(reader);
-    ctrl->pos_x_delta = crestial_read_i32(reader);
-    ctrl->pos_y_delta = crestial_read_i32(reader);
+    ctrl->pos_x = crestial_read_double(reader);
+    ctrl->pos_y = crestial_read_double(reader);
+    ctrl->pos_x_delta = crestial_read_double(reader);
+    ctrl->pos_y_delta = crestial_read_double(reader);
   }
 
   crestial_reader_finalize(reader);

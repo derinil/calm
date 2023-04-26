@@ -22,6 +22,8 @@ void crestial_write_i32(struct CrestialWriter *w, int32_t u);
 void crestial_write_u32(struct CrestialWriter *w, uint32_t u);
 // crestial_write_u64 writes the 8 bytes that make up the u64
 void crestial_write_u64(struct CrestialWriter *w, uint64_t u);
+// crestial_write_u64 writes the 8 bytes that make up the double
+void crestial_write_double(struct CrestialWriter *w, double u);
 // crestial_write_str memcpy's the char array into the buffer
 void crestial_write_str(struct CrestialWriter *w, uint8_t *s, uint32_t length);
 // crestial_finalize sets the size variable that was passed in init and frees
@@ -45,6 +47,8 @@ int32_t crestial_read_i32(struct CrestialReader *r);
 uint32_t crestial_read_u32(struct CrestialReader *r);
 // crestial_read_u64 reads 8 bytes that make up a u64
 uint64_t crestial_read_u64(struct CrestialReader *r);
+// crestial_read_u64 reads 8 bytes that make up a double
+double crestial_read_double(struct CrestialReader *r);
 // crestial_read_str memcpy's a string of length to dest
 void crestial_read_str(struct CrestialReader *r, uint8_t *dest,
                        uint32_t length);

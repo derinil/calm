@@ -61,6 +61,14 @@ void crestial_write_u64(struct CrestialWriter *w, uint64_t u) {
   crestial_wrote(w, len);
 }
 
+void crestial_write_double(struct CrestialWriter *w, double u) {
+  static const int len = 8;
+  if (w->free < len)
+    crestial_expand_to_fit(w, len);
+  memcpy(w->curr_write, (char *)&u, len);
+  crestial_wrote(w, len);
+}
+
 // crestial_write_str memcpy's the char array into the buffer
 void crestial_write_str(struct CrestialWriter *w, uint8_t *s, uint32_t length) {
   if (w->free < length)
@@ -112,6 +120,14 @@ uint32_t crestial_read_u32(struct CrestialReader *r) {
 uint64_t crestial_read_u64(struct CrestialReader *r) {
   static const int len = 8;
   uint64_t u = 0;
+  memcpy(&u, r->src, len);
+  crestial_read(r, len);
+  return u;
+}
+
+double crestial_read_double(struct CrestialReader *r) {
+  static const int len = 8;
+  double u = 0;
   memcpy(&u, r->src, len);
   crestial_read(r, len);
   return u;

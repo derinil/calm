@@ -19,10 +19,10 @@ struct Control {
   enum ControlSource source;
   enum ControlType type;
   uint32_t value;
-  uint32_t pos_x;
-  uint32_t pos_y;
-  int32_t pos_x_delta;
-  int32_t pos_y_delta;
+  double pos_x;
+  double pos_y;
+  double pos_x_delta;
+  double pos_y_delta;
 };
 
 struct SerializedControl {
