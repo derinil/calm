@@ -52,6 +52,7 @@ var sourceFolders = [_][]const u8{
 var includePaths = [_][]const u8{
     // External
     basePath("/deps/nvenc"),
+    basePath("/deps/vulkan/include"),
 };
 
 var sourceFiles = [_][]const u8{

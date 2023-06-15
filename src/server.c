@@ -33,6 +33,15 @@ static void frame_callback(struct CFrame *frame) {
   struct CFrame *clone = clone_cframe(frame);
   decode_frame(g_server->decoder, clone);
 #endif
+#if 0
+  if (frame->parameter_sets_count) {
+    for (uint64_t j = 0; j < frame->parameter_sets_count; j++) {
+      for (uint64_t i = 0; i < frame->parameter_sets_lengths[j]; i++)
+        printf("%x-", frame->parameter_sets[j][i]);
+      printf("\n");
+    }
+  }
+#endif
   dstack_push(g_server->compressed_stack, frame, 1);
 }
 
