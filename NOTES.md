@@ -34,6 +34,11 @@
 - https://github.com/htaiwan/HWDecoder
 - https://stackoverflow.com/questions/37091132/ios-yuv-420v-using-gl-texture-2d-shows-wrong-colour-in-opengl-shader
 - https://stackoverflow.com/questions/25078364/cmvideoformatdescriptioncreatefromh264parametersets-issues
+## vulkan decoding
+- https://www.khronos.org/blog/an-introduction-to-vulkan-video
+- https://www.khronos.org/blog/khronos-finalizes-vulkan-video-extensions-for-accelerated-h.264-and-h.265-decode
+- https://github.com/nvpro-samples/vk_video_samples
+- https://www.vulkan.gpuinfo.org/listdevices.php?platform=windows
 - https://wickedengine.net/2023/05/07/vulkan-video-decoding/
 
 
@@ -81,7 +86,8 @@
 
 # todo
 
-- cframe stack freer is broken, probably dframe too
+- cframe stack freer is broken, probably dframe too (is this still the case?)
+- link vulkan sdk
 
 # vscode extensions
 
@@ -96,7 +102,8 @@
 
 # might be an issue
 
-- - https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
+- https://stackoverflow.com/questions/53640949/vtcompressionsession-bitrate-datarate-overshooting
+- switch to libxev later
 
 # debugging
 
@@ -123,3 +130,9 @@ breakpoint delete 1
 - encryption
 - clipboard transfer
 - much, much fewer allocations
+
+# commands
+```
+git submodule sync --recursive
+git submodule update --recursive --remote
+```
