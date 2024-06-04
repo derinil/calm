@@ -4,8 +4,8 @@ const log = std.log;
 const glfw = @import("deps/glfw/build.zig");
 const cimgui = @import("deps/cimgui/build.zig");
 const libuv = @import("deps/libuv/build.zig");
-const h264bsd = @import("deps/h264bsd/build.zig");
-const robotc = @import("deps/robotc/build.zig");
+// const h264bsd = @import("deps/h264bsd/build.zig");
+// const robotc = @import("deps/robotc/build.zig");
 
 const Decoders = enum {
     hardware,
@@ -83,11 +83,11 @@ pub fn build(b: *std.Build) void {
     exe.addIncludePath("deps/cimgui/generator/output/");
 
     _ = libuv.link(b, exe) catch unreachable;
-    
-    _ = robotc.link(b, exe) catch unreachable;
 
-    if (decoder == .software)
-        _ = h264bsd.link(b, exe) catch unreachable;
+    // _ = robotc.link(b, exe) catch unreachable;
+
+    // if (decoder == .software)
+    //     _ = h264bsd.link(b, exe) catch unreachable;
 
     var flags = std.ArrayList([]const u8).init(b.allocator);
     defer flags.deinit();
@@ -134,7 +134,7 @@ pub fn build(b: *std.Build) void {
     }
 
     for (sourceFolders) |f| {
-        var sf = getSourcesInDir(b.allocator, f) catch unreachable;
+        const sf = getSourcesInDir(b.allocator, f) catch unreachable;
 
         for (sf) |s| {
             exe.addCSourceFile(s, flags.items);
@@ -172,7 +172,7 @@ fn getSourcesInDir(allocator: std.mem.Allocator, dir_path: []const u8) ![][]cons
     while (try iter.next()) |e| {
         if (e.kind != .File) continue;
         if (!std.mem.endsWith(u8, e.name, ".cpp") and !std.mem.endsWith(u8, e.name, ".c")) continue;
-        var fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
+        const fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
         try files.append(fp);
     }
 
@@ -189,7 +189,7 @@ fn getHeadersInDir(allocator: std.mem.Allocator, dir_path: []const u8) ![][]cons
     while (try iter.next()) |e| {
         if (e.kind != .File) continue;
         if (!std.mem.endsWith(u8, e.name, ".h")) continue;
-        var fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
+        const fp = dir.dir.realpathAlloc(allocator, e.name) catch unreachable;
         try files.append(fp);
     }
 
