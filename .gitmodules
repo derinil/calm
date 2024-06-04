@@ -10,9 +10,6 @@
 [submodule "deps/robotc"]
 	path = deps/robotc
 	url = https://github.com/derinil/robotC.git
-[submodule "deps/glfw"]
-	path = deps/glfw
-	url = https://github.com/hexops/mach-glfw.git
 [submodule "deps/vulkan"]
 	path = deps/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
