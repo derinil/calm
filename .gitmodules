@@ -7,3 +7,6 @@
 [submodule "deps/vulkan"]
 	path = deps/vulkan
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "deps/robotjs"]
+	path = deps/robotjs
+	url = https://github.com/octalmage/robotjs.git

@@ -1,7 +1,8 @@
 UNAME_S = $(shell uname -s)
 
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -Wstrict-aliasing
+CFLAGS = -static -Wall -Wextra -Wpedantic -Wstrict-aliasing
+CFLAGS += -Wno-unused-variable -Wno-unused-parameter -Wno-unused-but-set-variable
 CFLAGS += -Wno-unused-parameter
 CFLAGS += -pthread
 CFLAGS += -Ilibs/curl/include -Ilibs/libwebsockets/build/include -Ilibs/libsodium/src/libsodium/include
@@ -32,15 +33,7 @@ OBJ  = $(SRC:.c=.o)
 BIN  = bin
 EXE  = exe
 
-BENCHMARK_SRC := $(wildcard benchmark/*.c) $(wildcard src/**/*.c) $(wildcard src/*.c) $(wildcard src/**/**/*.c) $(wildcard src/**/**/**/*.c)
-BENCHMARK_SRC := $(filter-out src/main.c, $(BENCHMARK_SRC))
-BENCHMARK_OBJ  = $(BENCHMARK_SRC:.c=.o)
-
-TEST_SRC := $(wildcard test/*.c) $(wildcard src/**/*.c) $(wildcard src/*.c) $(wildcard src/**/**/*.c) $(wildcard src/**/**/**/*.c)
-TEST_SRC := $(filter-out src/main.c, $(TEST_SRC))
-TEST_OBJ  = $(TEST_SRC:.c=.o)
-
-.PHONY: all run clean libs libs-clean run-bench run-test
+.PHONY: all run clean libs libs-clean
 
 all: dirs build
 
@@ -70,6 +63,3 @@ libs-clean:
 
 clean:
 	rm -rf $(BIN)/exe $(BIN)/exe_bench $(BIN)/exe_test $(OBJ)
-
-clean-logs:
-	rm prices.log openorders.log events.log balances.log

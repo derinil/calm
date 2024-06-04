@@ -2,4 +2,4 @@
 -Ideps/glad
 -Ideps/glfw
 -Ideps/libuv
--Ideps/robotc
+-Ideps/robotjs/src

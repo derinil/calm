@@ -9,3 +9,4 @@ zig-out
 !compile_flags.txt
 deps/nvenc/stubs
 deps/nvenc/cuda.h
+*.o
